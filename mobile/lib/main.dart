@@ -34,6 +34,20 @@ class _HomeState extends State<Home> {
     _classifier.loadModel();
   }
 
+  // Função auxiliar para definir a cor do texto com base na doença
+  Color _pegarCorResultado(String resultado) {
+    switch (resultado) {
+      case "SAUDÁVEL":
+        return Colors.green;
+      case "FERRUGEM":
+        return Colors.red;
+      case "OÍDIO":
+        return Colors.orange[700]!; // Um laranja escuro alerta bem o produtor
+      default:
+        return Colors.grey[700]!;
+    }
+  }
+
   // --- LÓGICA DE CLASSIFICAÇÃO ---
   Future<void> _classificarImagem(File image) async {
     setState(() {
@@ -42,12 +56,7 @@ class _HomeState extends State<Home> {
       _confianca = "";
     });
 
-    // --- CORREÇÃO DO ERRO AQUI ---
-    // Pegamos o resultado genérico primeiro
-    var rawOutput = await _classifier.predict(image);
-    
-    // Convertemos explicitamente para lista de double
-    List<double> output = List<double>.from(rawOutput);
+    List<double> output = await _classifier.predict(image);
 
     setState(() {
       _loading = false;
@@ -57,14 +66,13 @@ class _HomeState extends State<Home> {
         return;
       }
 
-      // --- SUA LISTA DE DOENÇAS ---
-      // 0: ferrugem
-      // 1: saudavel
-      List<String> labels = ["Ferrugem", "Saudável"]; 
+      // --- NOVA LISTA DE DOENÇAS (Ordem exata do treino) ---
+      List<String> labels = ["Ferrugem", "Oídio", "Saudável"]; 
 
       double maiorValor = 0.0;
       int indexGanhador = -1;
 
+      // Argmax: Encontra a maior probabilidade e a posição dela
       for (int i = 0; i < output.length; i++) {
         if (output[i] > maiorValor) {
           maiorValor = output[i];
@@ -73,9 +81,10 @@ class _HomeState extends State<Home> {
       }
 
       if (indexGanhador != -1) {
-        if (maiorValor < 0.6) {
+        // Se a IA tiver menos de 50% de certeza, consideramos inconclusivo
+        if (maiorValor < 0.5) {
              _resultado = "Inconclusivo";
-             _confianca = "Tente melhorar a iluminação";
+             _confianca = "Tente melhorar a iluminação e focar na folha";
         } else {
              String nomeResultado = indexGanhador < labels.length 
                  ? labels[indexGanhador] 
@@ -105,7 +114,6 @@ class _HomeState extends State<Home> {
         _classificarImagem(imagemTemporaria);
       }
     } catch (e) {
-      // O 'debugPrint' é preferível ao 'print' no Flutter, mas print funciona
       debugPrint("Erro ao pegar imagem: $e");
     }
   }
@@ -114,7 +122,7 @@ class _HomeState extends State<Home> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Detector AGdata'),
+        title: const Text('Detector AGdata', style: TextStyle(color: Colors.white)),
         backgroundColor: const Color(0xFF2E7D32),
         centerTitle: true,
       ),
@@ -147,7 +155,7 @@ class _HomeState extends State<Home> {
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: Colors.grey, width: 2),
                    ),
-                   child: const Column( // Adicionado const aqui para otimização
+                   child: const Column( 
                      mainAxisAlignment: MainAxisAlignment.center,
                      children: [
                        Icon(Icons.add_a_photo, size: 60, color: Colors.grey),
@@ -169,13 +177,13 @@ class _HomeState extends State<Home> {
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
-                          color: _resultado == "SAUDÁVEL" ? Colors.green : (_resultado == "FERRUGEM" ? Colors.red : Colors.grey[700]),
+                          color: _pegarCorResultado(_resultado), // Cor dinâmica!
                         ),
                       ),
                       const SizedBox(height: 5),
                       Text(
                         _confianca,
-                        style: const TextStyle(fontSize: 18, color: Colors.grey),
+                        style: const TextStyle(fontSize: 18, color: Colors.grey, fontWeight: FontWeight.w500),
                       ),
                     ],
                   ),
@@ -192,6 +200,7 @@ class _HomeState extends State<Home> {
                     label: const Text('Câmera'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green[700],
+                      foregroundColor: Colors.white, // Deixa texto e ícone brancos
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                     ),
                   ),
@@ -202,6 +211,7 @@ class _HomeState extends State<Home> {
                     label: const Text('Galeria'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue[700],
+                      foregroundColor: Colors.white, // Deixa texto e ícone brancos
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                     ),
                   ),

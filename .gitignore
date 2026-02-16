@@ -16,3 +16,11 @@
 # --- ARQUIVOS DE SISTEMA ---
 .DS_Store
 Thumbs.db
+
+# --- MODELOS DE IA ---
+*.tflite
+*.keras
+*.h5
+/mobile/assets/*.tflite
+/mobile/assets/*.keras
+/inteligencia/dataset/
