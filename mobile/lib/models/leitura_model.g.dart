@@ -51,6 +51,11 @@ const LeituraModelSchema = CollectionSchema(
       id: 6,
       name: r'sincronizado',
       type: IsarType.bool,
+    ),
+    r'talhao': PropertySchema(
+      id: 7,
+      name: r'talhao',
+      type: IsarType.string,
     )
   },
   estimateSize: _leituraModelEstimateSize,
@@ -75,6 +80,7 @@ int _leituraModelEstimateSize(
   var bytesCount = offsets.last;
   bytesCount += 3 + object.caminhoImagem.length * 3;
   bytesCount += 3 + object.resultadoIA.length * 3;
+  bytesCount += 3 + object.talhao.length * 3;
   return bytesCount;
 }
 
@@ -91,6 +97,7 @@ void _leituraModelSerialize(
   writer.writeDouble(offsets[4], object.longitude);
   writer.writeString(offsets[5], object.resultadoIA);
   writer.writeBool(offsets[6], object.sincronizado);
+  writer.writeString(offsets[7], object.talhao);
 }
 
 LeituraModel _leituraModelDeserialize(
@@ -108,6 +115,7 @@ LeituraModel _leituraModelDeserialize(
   object.longitude = reader.readDouble(offsets[4]);
   object.resultadoIA = reader.readString(offsets[5]);
   object.sincronizado = reader.readBool(offsets[6]);
+  object.talhao = reader.readString(offsets[7]);
   return object;
 }
 
@@ -132,6 +140,8 @@ P _leituraModelDeserializeProp<P>(
       return (reader.readString(offset)) as P;
     case 6:
       return (reader.readBool(offset)) as P;
+    case 7:
+      return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
@@ -819,6 +829,141 @@ extension LeituraModelQueryFilter
       ));
     });
   }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition> talhaoEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'talhao',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      talhaoGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'talhao',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      talhaoLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'talhao',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition> talhaoBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'talhao',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      talhaoStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'talhao',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      talhaoEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'talhao',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      talhaoContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'talhao',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition> talhaoMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'talhao',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      talhaoIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'talhao',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      talhaoIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'talhao',
+        value: '',
+      ));
+    });
+  }
 }
 
 extension LeituraModelQueryObject
@@ -913,6 +1058,18 @@ extension LeituraModelQuerySortBy
       sortBySincronizadoDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'sincronizado', Sort.desc);
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterSortBy> sortByTalhao() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'talhao', Sort.asc);
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterSortBy> sortByTalhaoDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'talhao', Sort.desc);
     });
   }
 }
@@ -1017,6 +1174,18 @@ extension LeituraModelQuerySortThenBy
       return query.addSortBy(r'sincronizado', Sort.desc);
     });
   }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterSortBy> thenByTalhao() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'talhao', Sort.asc);
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterSortBy> thenByTalhaoDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'talhao', Sort.desc);
+    });
+  }
 }
 
 extension LeituraModelQueryWhereDistinct
@@ -1063,6 +1232,13 @@ extension LeituraModelQueryWhereDistinct
   QueryBuilder<LeituraModel, LeituraModel, QDistinct> distinctBySincronizado() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'sincronizado');
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QDistinct> distinctByTalhao(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'talhao', caseSensitive: caseSensitive);
     });
   }
 }
@@ -1114,6 +1290,12 @@ extension LeituraModelQueryProperty
   QueryBuilder<LeituraModel, bool, QQueryOperations> sincronizadoProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'sincronizado');
+    });
+  }
+
+  QueryBuilder<LeituraModel, String, QQueryOperations> talhaoProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'talhao');
     });
   }
 }
