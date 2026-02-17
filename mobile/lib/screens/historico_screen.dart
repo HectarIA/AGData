@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/leitura_model.dart';
 import '../services/database_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class HistoricoScreen extends StatefulWidget {
   const HistoricoScreen({super.key});
@@ -55,6 +56,55 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
     });
   }
 
+  // --- FUNÇÃO DO WHATSAPP ORGANIZADA AQUI ---
+  Future<void> _enviarRelatorioWhatsApp() async {
+    // 1. Separa só as leituras que o utilizador marcou na caixinha
+    final itensMarcados = _leituras.where((l) => _selecionados.contains(l.id)).toList();
+    if (itensMarcados.isEmpty) return;
+
+    // 2. Constrói o texto do relatório linha por linha
+    StringBuffer sb = StringBuffer();
+    sb.writeln("📊 *Relatório AGdata - Inspeção de Campo*");
+    sb.writeln("📅 *Data do Envio:* ${_formatarData(DateTime.now())}\n");
+    sb.writeln("⚠️ *Atenção:* ${itensMarcados.length} registo(s) selecionado(s).\n");
+
+    for (int i = 0; i < itensMarcados.length; i++) {
+      final item = itensMarcados[i];
+      sb.writeln("*Foco ${i + 1} - ${item.resultadoIA}*");
+      sb.writeln("Precisão: ${(item.confianca * 100).toStringAsFixed(1)}%");
+      
+      // Mudei para o link oficial do Google Maps que crava o pino!
+      final linkMapa = "https://maps.google.com/?q=${item.latitude},${item.longitude}";
+      sb.writeln("📍 Localização: $linkMapa\n");
+    }
+
+    sb.writeln("Aguardando orientações de manejo. 🚜");
+
+    // 3. Converte o texto para formato de link de internet
+    final textoCodificado = Uri.encodeComponent(sb.toString());
+    
+    // O link universal do WhatsApp
+    final url = Uri.parse("https://wa.me/?text=$textoCodificado");
+
+    // 4. Tenta abrir o WhatsApp no celular
+    try {
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        throw Exception('Não foi possível abrir o link');
+      }
+      // Se deu certo, limpa a seleção para a tela ficar bonita novamente
+      setState(() {
+        _selecionados.clear();
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Erro ao abrir o WhatsApp. Ele está instalado?")),
+        );
+      }
+    }
+  }
+  // --- FIM DA FUNÇÃO DO WHATSAPP ---
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -63,17 +113,10 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
         backgroundColor: const Color(0xFF2E7D32),
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          // Este é o botão que usaremos no próximo passo para o WhatsApp!
           IconButton(
             icon: const Icon(Icons.share),
-            onPressed: _selecionados.isEmpty 
-              ? null // Fica desativado se nada estiver selecionado
-              : () {
-                  // Aqui entrará a lógica do WhatsApp na próxima etapa
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Preparar envio de ${_selecionados.length} itens... (Em breve)")),
-                  );
-                },
+            // Se a lista estiver vazia, botão fica null (apagado). Se tiver itens, chama a função!
+            onPressed: _selecionados.isEmpty ? null : _enviarRelatorioWhatsApp,
           )
         ],
       ),
