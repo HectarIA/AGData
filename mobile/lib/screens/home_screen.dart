@@ -1,8 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart'; // Para as pastas seguras
+import 'package:geolocator/geolocator.dart';
 import '../classifier.dart';
 import '../services/location_service.dart';
+import '../services/database_service.dart';
+import '../models/leitura_model.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,10 +21,11 @@ class _HomeScreenState extends State<HomeScreen> {
   
   final Classifier _classifier = Classifier();
   final LocationService _locationService = LocationService();
+  final DatabaseService _databaseService = DatabaseService();
 
-  String _resultado = "Tire uma foto";
+  String _resultado = "Tire uma fotografia";
   String _confianca = "para analisar a soja";
-  String _localizacao = ""; 
+  String _localizacaoTexto = ""; 
   bool _loading = false;
 
   @override
@@ -41,50 +46,78 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _processarImagem(File image) async {
     setState(() {
       _loading = true;
-      _resultado = "Analisando...";
+      _resultado = "A analisar...";
       _confianca = "";
-      _localizacao = "Buscando localização... 🛰️"; 
+      _localizacaoTexto = "A buscar satélite... 🛰️"; 
     });
 
-    // Executa inferência e busca de GPS simultaneamente
+    // 1. Executa inferência e busca de GPS simultaneamente
     List<double> output = await _classifier.predict(image);
-    String loc = await _locationService.getCoordinates();
+    Position? pos = await _locationService.getCurrentPosition();
 
+    // 2. Trata as coordenadas
+    double lat = 0.0;
+    double lng = 0.0;
+    String locTexto = "GPS indisponível";
+    
+    if (pos != null) {
+      lat = pos.latitude;
+      lng = pos.longitude;
+      locTexto = "📍 Lat: ${lat.toStringAsFixed(5)} | Lng: ${lng.toStringAsFixed(5)}";
+    }
+
+    // 3. Lógica da IA para achar o vencedor
+    List<String> labels = ["Ferrugem", "Oídio", "Saudável"]; 
+    double maiorValor = 0.0;
+    int indexGanhador = -1;
+
+    for (int i = 0; i < output.length; i++) {
+      if (output[i] > maiorValor) {
+        maiorValor = output[i];
+        indexGanhador = i;
+      }
+    }
+
+    String nomeFinal = "Não identificado";
+    if (output.isNotEmpty && indexGanhador != -1) {
+      if (maiorValor < 0.5) {
+        nomeFinal = "Inconclusivo";
+      } else {
+        nomeFinal = indexGanhador < labels.length ? labels[indexGanhador] : "Desconhecido";
+      }
+    }
+
+    // --- MAGIA DO BANCO DE DADOS COMEÇA AQUI ---
+    // 4. Copiar a imagem para o diretório seguro (para não apagar do Histórico)
+    final appDir = await getApplicationDocumentsDirectory();
+    final nomeFicheiro = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final imagemGuardada = await image.copy('${appDir.path}/$nomeFicheiro');
+
+    // 5. Criar o registo e guardar no Isar
+    final novaLeitura = LeituraModel()
+      ..resultadoIA = nomeFinal.toUpperCase()
+      ..confianca = maiorValor // Guardamos o valor puro (ex: 0.95) para facilitar contas futuras
+      ..caminhoImagem = imagemGuardada.path
+      ..dataHora = DateTime.now()
+      ..latitude = lat
+      ..longitude = lng
+      ..sincronizado = false;
+
+    await _databaseService.guardarLeitura(novaLeitura);
+    debugPrint("✅ Leitura guardada com sucesso no Isar!");
+    // --- MAGIA TERMINA AQUI ---
+
+    // 6. Atualizar o Ecrã
     setState(() {
       _loading = false;
-      _localizacao = loc;
+      _localizacaoTexto = locTexto;
 
-      if (output.isEmpty) {
-        _resultado = "Erro na análise";
-        return;
-      }
-
-      List<String> labels = ["Ferrugem", "Oídio", "Saudável"]; 
-      double maiorValor = 0.0;
-      int indexGanhador = -1;
-
-      // Argmax: Encontra a maior probabilidade e seu índice
-      for (int i = 0; i < output.length; i++) {
-        if (output[i] > maiorValor) {
-          maiorValor = output[i];
-          indexGanhador = i;
-        }
-      }
-
-      if (indexGanhador != -1) {
-        if (maiorValor < 0.5) {
-             _resultado = "Inconclusivo";
-             _confianca = "Tente melhorar a iluminação e focar na folha";
-        } else {
-             String nomeResultado = indexGanhador < labels.length 
-                 ? labels[indexGanhador] 
-                 : "Desconhecido";
-
-             _resultado = nomeResultado.toUpperCase();
-             _confianca = "${(maiorValor * 100).toStringAsFixed(1)}% de certeza";
-        }
+      if (nomeFinal == "Inconclusivo") {
+        _resultado = nomeFinal;
+        _confianca = "Tente melhorar a iluminação e focar na folha";
       } else {
-        _resultado = "Não identificado";
+        _resultado = nomeFinal.toUpperCase();
+        _confianca = "${(maiorValor * 100).toStringAsFixed(1)}% de certeza";
       }
     });
   }
@@ -98,7 +131,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _processarImagem(imagemTemporaria);
       }
     } catch (e) {
-      debugPrint("Erro ao pegar imagem: $e");
+      debugPrint("Erro ao capturar imagem: $e");
     }
   }
 
@@ -156,11 +189,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 5),
                       Text(_confianca, style: const TextStyle(fontSize: 18, color: Colors.grey, fontWeight: FontWeight.w500)),
                       const SizedBox(height: 10),
-                      if (_localizacao.isNotEmpty)
+                      if (_localizacaoTexto.isNotEmpty && _localizacaoTexto != "GPS indisponível")
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(8)),
-                          child: Text(_localizacao, style: TextStyle(fontSize: 14, color: Colors.blue[800], fontWeight: FontWeight.bold)),
+                          child: Text(_localizacaoTexto, style: TextStyle(fontSize: 14, color: Colors.blue[800], fontWeight: FontWeight.bold)),
                         ),
                     ],
                   ),
@@ -173,7 +206,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ElevatedButton.icon(
                     onPressed: () => _pickImage(ImageSource.camera),
                     icon: const Icon(Icons.camera_alt),
-                    label: const Text('Câmera'),
+                    label: const Text('Câmara'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green[700],
                       foregroundColor: Colors.white, 

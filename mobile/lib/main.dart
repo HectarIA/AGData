@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
-import 'screens/home_screen.dart'; // Importe a sua nova tela
+import 'screens/home_screen.dart';
+import 'services/database_service.dart';
 
-void main() {
+void main() async {
+  // Garante que o Flutter e os plugins nativos estão prontos antes de iniciar
+  WidgetsFlutterBinding.ensureInitialized(); 
+  
+  // Inicia o Isar Database!
+  await DatabaseService.initialize(); 
+
   runApp(const AGDataApp());
 }
 
@@ -13,7 +20,6 @@ class AGDataApp extends StatelessWidget {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'AGdata',
-      // Aqui futuramente você pode colocar o Theme global do app
       home: HomeScreen(), 
     );
   }

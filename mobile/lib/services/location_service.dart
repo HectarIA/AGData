@@ -1,27 +1,26 @@
 import 'package:geolocator/geolocator.dart';
 
 class LocationService {
-  // Retorna as coordenadas formatadas ou a mensagem de erro apropriada
-  Future<String> getCoordinates() async {
+  // Agora devolve o objeto Position ou null (se der erro/não tiver permissão)
+  Future<Position?> getCurrentPosition() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return "GPS Desligado";
+    if (!serviceEnabled) return null;
 
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) return "Permissão Negada";
+      if (permission == LocationPermission.denied) return null;
     }
 
     if (permission == LocationPermission.deniedForever) {
-      return "GPS Bloqueado nas Configurações";
+      return null;
     }
 
     try {
-      Position position = await Geolocator.getCurrentPosition(
+      return await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high);
-      return "📍 Lat: ${position.latitude.toStringAsFixed(5)} | Lng: ${position.longitude.toStringAsFixed(5)}";
     } catch (e) {
-      return "Erro ao buscar satélite";
+      return null;
     }
   }
 }
