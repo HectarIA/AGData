@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'screens/home_screen.dart';
 import 'services/database_service.dart';
 
+
 void main() async {
   // Garante que o Flutter e os plugins nativos estão prontos antes de iniciar
   WidgetsFlutterBinding.ensureInitialized(); 

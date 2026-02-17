@@ -1,13 +1,14 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart'; // Para as pastas seguras
+import 'package:path_provider/path_provider.dart';
 import 'package:geolocator/geolocator.dart';
 import '../classifier.dart';
 import '../services/location_service.dart';
 import '../services/database_service.dart';
 import '../models/leitura_model.dart';
-import 'historico_screen.dart'; // <-- IMPORT DA TELA NOVA AQUI!
+import 'historico_screen.dart'; 
+import 'mapa_screen.dart'; // <-- Import do mapa!
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -144,7 +145,18 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: const Color(0xFF2E7D32),
         centerTitle: true,
         actions: [
-          // <-- BOTÃO NOVO AQUI! Ao clicar, abre o Histórico
+          // <-- BOTÃO NOVO AQUI! Ao clicar, abre o Mapa
+          IconButton(
+            icon: const Icon(Icons.map, color: Colors.white),
+            tooltip: 'Ver Zonamento',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const MapaScreen()),
+              );
+            },
+          ),
+          // Botão do Histórico antigo
           IconButton(
             icon: const Icon(Icons.list_alt, color: Colors.white),
             tooltip: 'Abrir Histórico',
