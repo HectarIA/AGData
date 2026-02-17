@@ -23,8 +23,9 @@ class DatabaseService {
     });
   }
 
-  // Já deixo preparada a função que vamos usar amanhã para o Histórico!
-  Future<List<LeituraModel>> obterHistorico() async {
+  // Função que a nossa Tela de Histórico vai chamar
+  // Já aproveitei a sua lógica brilhante de trazer os dados mais recentes primeiro!
+  Future<List<LeituraModel>> buscarTodasLeituras() async {
     return await isar.leituraModels.where().sortByDataHoraDesc().findAll();
   }
 }

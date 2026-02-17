@@ -7,6 +7,7 @@ import '../classifier.dart';
 import '../services/location_service.dart';
 import '../services/database_service.dart';
 import '../models/leitura_model.dart';
+import 'historico_screen.dart'; // <-- IMPORT DA TELA NOVA AQUI!
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -142,6 +143,19 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('Detector AGdata', style: TextStyle(color: Colors.white)),
         backgroundColor: const Color(0xFF2E7D32),
         centerTitle: true,
+        actions: [
+          // <-- BOTÃO NOVO AQUI! Ao clicar, abre o Histórico
+          IconButton(
+            icon: const Icon(Icons.list_alt, color: Colors.white),
+            tooltip: 'Abrir Histórico',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const HistoricoScreen()),
+              );
+            },
+          )
+        ],
       ),
       body: Center(
         child: SingleChildScrollView(
