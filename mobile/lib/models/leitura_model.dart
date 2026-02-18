@@ -18,7 +18,7 @@ class LeituraModel {
   late double latitude;          
   late double longitude;         
 
-  late String talhao;
+  String talhao = "";
 
   bool sincronizado = false; 
 }
