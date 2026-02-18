@@ -1,257 +1,187 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:geolocator/geolocator.dart';
-import '../classifier.dart';
-import '../services/location_service.dart';
+import 'home_screen.dart';
 import '../services/database_service.dart';
-import '../models/leitura_model.dart';
-import 'historico_screen.dart'; 
-import 'mapa_screen.dart'; 
+import '../models/talhao_model.dart';
 
-class HomeScreen extends StatefulWidget {
-  // --- A CORREÇÃO ESTÁ AQUI ---
-  final String talhaoAtual; 
-  const HomeScreen({super.key, required this.talhaoAtual});
-  // ----------------------------
+class SelecaoTalhaoScreen extends StatefulWidget {
+  const SelecaoTalhaoScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<SelecaoTalhaoScreen> createState() => _SelecaoTalhaoScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  File? _image;
-  final ImagePicker _picker = ImagePicker();
-  
-  final Classifier _classifier = Classifier();
-  final LocationService _locationService = LocationService();
+class _SelecaoTalhaoScreenState extends State<SelecaoTalhaoScreen> {
   final DatabaseService _databaseService = DatabaseService();
-
-  String _resultado = "Tire uma fotografia";
-  String _confianca = "para analisar a soja";
-  String _localizacaoTexto = ""; 
-  bool _loading = false;
+  
+  List<TalhaoModel> _talhoes = [];
+  String? _talhaoSelecionado;
+  bool _carregando = true;
 
   @override
   void initState() {
     super.initState();
-    _classifier.loadModel();
+    _carregarTalhoesDoBanco();
   }
 
-  Color _pegarCorResultado(String resultado) {
-    switch (resultado) {
-      case "SAUDÁVEL": return Colors.green;
-      case "FERRUGEM": return Colors.red;
-      case "OÍDIO": return Colors.orange[700]!; 
-      default: return Colors.grey[700]!;
-    }
-  }
-
-  Future<void> _processarImagem(File image) async {
+  Future<void> _carregarTalhoesDoBanco() async {
+    List<TalhaoModel> lista = await _databaseService.buscarTodosTalhoes();
     setState(() {
-      _loading = true;
-      _resultado = "A analisar...";
-      _confianca = "";
-      _localizacaoTexto = "A buscar satélite... 🛰️"; 
-    });
-
-    List<double> output = await _classifier.predict(image);
-    Position? pos = await _locationService.getCurrentPosition();
-
-    double lat = 0.0;
-    double lng = 0.0;
-    String locTexto = "GPS indisponível";
-    
-    if (pos != null) {
-      lat = pos.latitude;
-      lng = pos.longitude;
-      locTexto = "📍 Lat: ${lat.toStringAsFixed(5)} | Lng: ${lng.toStringAsFixed(5)}";
-    }
-
-    List<String> labels = ["Ferrugem", "Oídio", "Saudável"]; 
-    double maiorValor = 0.0;
-    int indexGanhador = -1;
-
-    for (int i = 0; i < output.length; i++) {
-      if (output[i] > maiorValor) {
-        maiorValor = output[i];
-        indexGanhador = i;
+      _talhoes = lista;
+      if (_talhaoSelecionado == null && lista.isNotEmpty) {
+        _talhaoSelecionado = lista.first.nome;
       }
-    }
-
-    String nomeFinal = "Não identificado";
-    if (output.isNotEmpty && indexGanhador != -1) {
-      if (maiorValor < 0.5) {
-        nomeFinal = "Inconclusivo";
-      } else {
-        nomeFinal = indexGanhador < labels.length ? labels[indexGanhador] : "Desconhecido";
-      }
-    }
-
-    final appDir = await getApplicationDocumentsDirectory();
-    final nomeFicheiro = '${DateTime.now().millisecondsSinceEpoch}.jpg';
-    final imagemGuardada = await image.copy('${appDir.path}/$nomeFicheiro');
-
-    // Salvando no banco com o talhão correto
-    final novaLeitura = LeituraModel()
-      ..resultadoIA = nomeFinal.toUpperCase()
-      ..confianca = maiorValor 
-      ..caminhoImagem = imagemGuardada.path
-      ..dataHora = DateTime.now()
-      ..latitude = lat
-      ..longitude = lng
-      ..talhao = widget.talhaoAtual // <-- AQUI USAMOS A VARIÁVEL NOVA
-      ..sincronizado = false;
-
-    await _databaseService.guardarLeitura(novaLeitura);
-    debugPrint("✅ Leitura guardada no talhão: ${widget.talhaoAtual}");
-
-    setState(() {
-      _loading = false;
-      _localizacaoTexto = locTexto;
-
-      if (nomeFinal == "Inconclusivo") {
-        _resultado = nomeFinal;
-        _confianca = "Tente melhorar a iluminação";
-      } else {
-        _resultado = nomeFinal.toUpperCase();
-        _confianca = "${(maiorValor * 100).toStringAsFixed(1)}% de certeza";
-      }
+      _carregando = false;
     });
   }
 
-  Future<void> _pickImage(ImageSource source) async {
-    try {
-      final pickedFile = await _picker.pickImage(source: source);
-      if (pickedFile != null) {
-        File imagemTemporaria = File(pickedFile.path);
-        setState(() => _image = imagemTemporaria);
-        _processarImagem(imagemTemporaria);
-      }
-    } catch (e) {
-      debugPrint("Erro ao capturar imagem: $e");
-    }
+  Future<void> _mostrarDialogoNovoTalhao() async {
+    TextEditingController controlador = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Cadastrar Novo Talhão', style: TextStyle(color: Colors.green)),
+          content: TextField(
+            controller: controlador,
+            decoration: const InputDecoration(
+              hintText: 'Ex: Lote Sul, Gleba 03...',
+              border: OutlineInputBorder(),
+            ),
+            textCapitalization: TextCapitalization.words,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+              onPressed: () async {
+                String nome = controlador.text.trim();
+                if (nome.isNotEmpty) {
+                  final novoTalhao = TalhaoModel()..nome = nome;
+                  await _databaseService.guardarTalhao(novoTalhao);
+                  
+                  if (context.mounted) Navigator.pop(context);
+                  _carregarTalhoesDoBanco();
+                }
+              },
+              child: const Text('Salvar'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // Mostra o nome do talhão no topo
-        title: Text(widget.talhaoAtual, style: const TextStyle(color: Colors.white)),
+        title: const Text('AGdata - Áreas', style: TextStyle(color: Colors.white)),
         backgroundColor: const Color(0xFF2E7D32),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.map, color: Colors.white),
-            tooltip: 'Ver Zonamento',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const MapaScreen()),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.list_alt, color: Colors.white),
-            tooltip: 'Abrir Histórico',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const HistoricoScreen()),
-              );
-            },
-          )
-        ],
       ),
-      body: Center(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (_image != null)
-                Container(
-                  height: 300, width: 300,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    border: Border.all(color: Colors.green, width: 3),
-                    borderRadius: BorderRadius.circular(12),
-                    image: DecorationImage(image: FileImage(_image!), fit: BoxFit.cover),
-                  ),
-                )
-              else
-                Container(
-                   height: 300, width: 300,
-                   decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey, width: 2),
-                   ),
-                   child: const Column( 
-                     mainAxisAlignment: MainAxisAlignment.center,
-                     children: [
-                       Icon(Icons.add_a_photo, size: 60, color: Colors.grey),
-                       SizedBox(height: 10),
-                       Text("Pronto para analisar", style: TextStyle(color: Colors.grey))
-                     ],
-                   ),
-                ),
-              
-              const SizedBox(height: 30),
-              
-              _loading 
-                ? const CircularProgressIndicator(color: Colors.green)
-                : Column(
-                    children: [
-                      Text(
-                        _resultado,
-                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: _pegarCorResultado(_resultado)),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(_confianca, style: const TextStyle(fontSize: 18, color: Colors.grey, fontWeight: FontWeight.w500)),
-                      const SizedBox(height: 10),
-                      if (_localizacaoTexto.isNotEmpty && _localizacaoTexto != "GPS indisponível")
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(8)),
-                          child: Text(_localizacaoTexto, style: TextStyle(fontSize: 14, color: Colors.blue[800], fontWeight: FontWeight.bold)),
-                        ),
-                    ],
-                  ),
-
-              const SizedBox(height: 40),
-              
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _mostrarDialogoNovoTalhao,
+        backgroundColor: Colors.green[700],
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add),
+        label: const Text('Novo Talhão'),
+      ),
+      body: _carregando
+          ? const Center(child: CircularProgressIndicator(color: Colors.green))
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  ElevatedButton.icon(
-                    onPressed: () => _pickImage(ImageSource.camera),
-                    icon: const Icon(Icons.camera_alt),
-                    label: const Text('Câmara'),
+                  const Text(
+                    'Onde você vai realizar o monitoramento?',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  if (_talhoes.isEmpty)
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.agriculture, size: 80, color: Colors.grey[400]),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Nenhum talhão cadastrado.\nCrie o primeiro agora.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: _talhoes.length,
+                        itemBuilder: (context, index) {
+                          final talhao = _talhoes[index].nome;
+                          final isSelected = _talhaoSelecionado == talhao;
+
+                          return Card(
+                            color: isSelected ? Colors.green[50] : Colors.white,
+                            elevation: isSelected ? 3 : 1,
+                            shape: RoundedRectangleBorder(
+                              side: BorderSide(
+                                color: isSelected ? Colors.green : Colors.transparent,
+                                width: 2,
+                              ),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            margin: const EdgeInsets.only(bottom: 12),
+                            child: ListTile(
+                              leading: Icon(Icons.eco, color: isSelected ? Colors.green[800] : Colors.grey),
+                              title: Text(
+                                talhao, 
+                                style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
+                              ),
+                              trailing: isSelected ? const Icon(Icons.check_circle, color: Colors.green) : null,
+                              onTap: () {
+                                setState(() {
+                                  _talhaoSelecionado = talhao;
+                                });
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  
+                  const SizedBox(height: 16),
+
+                  ElevatedButton(
+                    onPressed: _talhaoSelecionado == null
+                        ? null
+                        : () {
+                            // Aqui ele chama a HomeScreen passando o nome do Talhão!
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => HomeScreen(talhaoAtual: _talhaoSelecionado!),
+                              ),
+                            );
+                          },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green[700],
-                      foregroundColor: Colors.white, 
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
+                    child: const Text('Iniciar Análises', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   ),
-                  const SizedBox(width: 20),
-                  ElevatedButton.icon(
-                    onPressed: () => _pickImage(ImageSource.gallery),
-                    icon: const Icon(Icons.image),
-                    label: const Text('Galeria'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue[700],
-                      foregroundColor: Colors.white, 
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-                    ),
-                  ),
+                  const SizedBox(height: 60), 
                 ],
               ),
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 }

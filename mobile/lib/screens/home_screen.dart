@@ -8,10 +8,13 @@ import '../services/location_service.dart';
 import '../services/database_service.dart';
 import '../models/leitura_model.dart';
 import 'historico_screen.dart'; 
-import 'mapa_screen.dart'; // <-- Import do mapa!
+import 'mapa_screen.dart'; 
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  // --- A MUDANÇA PRINCIPAL ESTÁ AQUI ---
+  final String talhaoAtual; 
+  const HomeScreen({super.key, required this.talhaoAtual});
+  // -------------------------------------
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -53,11 +56,9 @@ class _HomeScreenState extends State<HomeScreen> {
       _localizacaoTexto = "A buscar satélite... 🛰️"; 
     });
 
-    // 1. Executa inferência e busca de GPS simultaneamente
     List<double> output = await _classifier.predict(image);
     Position? pos = await _locationService.getCurrentPosition();
 
-    // 2. Trata as coordenadas
     double lat = 0.0;
     double lng = 0.0;
     String locTexto = "GPS indisponível";
@@ -68,7 +69,6 @@ class _HomeScreenState extends State<HomeScreen> {
       locTexto = "📍 Lat: ${lat.toStringAsFixed(5)} | Lng: ${lng.toStringAsFixed(5)}";
     }
 
-    // 3. Lógica da IA para achar o vencedor
     List<String> labels = ["Ferrugem", "Oídio", "Saudável"]; 
     double maiorValor = 0.0;
     int indexGanhador = -1;
@@ -89,34 +89,31 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
 
-    // --- MAGIA DO BANCO DE DADOS COMEÇA AQUI ---
-    // 4. Copiar a imagem para o diretório seguro (para não apagar do Histórico)
     final appDir = await getApplicationDocumentsDirectory();
     final nomeFicheiro = '${DateTime.now().millisecondsSinceEpoch}.jpg';
     final imagemGuardada = await image.copy('${appDir.path}/$nomeFicheiro');
 
-    // 5. Criar o registo e guardar no Isar
+    // Salvando no banco com o talhão correto
     final novaLeitura = LeituraModel()
       ..resultadoIA = nomeFinal.toUpperCase()
-      ..confianca = maiorValor // Guardamos o valor puro (ex: 0.95) para facilitar contas futuras
+      ..confianca = maiorValor 
       ..caminhoImagem = imagemGuardada.path
       ..dataHora = DateTime.now()
       ..latitude = lat
       ..longitude = lng
+      ..talhao = widget.talhaoAtual // <-- AQUI USAMOS O QUE VEIO DA TELA ANTERIOR
       ..sincronizado = false;
 
     await _databaseService.guardarLeitura(novaLeitura);
-    debugPrint("✅ Leitura guardada com sucesso no Isar!");
-    // --- MAGIA TERMINA AQUI ---
+    debugPrint("✅ Leitura guardada no talhão: ${widget.talhaoAtual}");
 
-    // 6. Atualizar o Ecrã
     setState(() {
       _loading = false;
       _localizacaoTexto = locTexto;
 
       if (nomeFinal == "Inconclusivo") {
         _resultado = nomeFinal;
-        _confianca = "Tente melhorar a iluminação e focar na folha";
+        _confianca = "Tente melhorar a iluminação";
       } else {
         _resultado = nomeFinal.toUpperCase();
         _confianca = "${(maiorValor * 100).toStringAsFixed(1)}% de certeza";
@@ -141,11 +138,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Detector AGdata', style: TextStyle(color: Colors.white)),
+        // Mostra o nome do talhão no topo
+        title: Text(widget.talhaoAtual, style: const TextStyle(color: Colors.white)),
         backgroundColor: const Color(0xFF2E7D32),
         centerTitle: true,
         actions: [
-          // <-- BOTÃO NOVO AQUI! Ao clicar, abre o Mapa
           IconButton(
             icon: const Icon(Icons.map, color: Colors.white),
             tooltip: 'Ver Zonamento',
@@ -156,7 +153,6 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             },
           ),
-          // Botão do Histórico antigo
           IconButton(
             icon: const Icon(Icons.list_alt, color: Colors.white),
             tooltip: 'Abrir Histórico',
@@ -197,7 +193,7 @@ class _HomeScreenState extends State<HomeScreen> {
                      children: [
                        Icon(Icons.add_a_photo, size: 60, color: Colors.grey),
                        SizedBox(height: 10),
-                       Text("Sem imagem", style: TextStyle(color: Colors.grey))
+                       Text("Pronto para analisar", style: TextStyle(color: Colors.grey))
                      ],
                    ),
                 ),
