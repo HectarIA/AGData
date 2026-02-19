@@ -1,34 +1,43 @@
 import tensorflow as tf
 import numpy as np
 import os
-
-# Importação moderna (Resolve o erro do Pylance)
 from tensorflow.keras.utils import load_img, img_to_array
 
-# Carrega o modelo treinado
 print("Carregando o cérebro da IA...")
-model = tf.keras.models.load_model('modelo_soja.h5')
+# 1. Atualizado para o formato .keras (que você acabou de treinar)
+model = tf.keras.models.load_model('modelo_soja.keras')
 
-# Defina as classes manualmente na mesma ordem alfabética das pastas
-class_names = ['ferrugem', 'saudavel'] 
+# 2. Classes atualizadas com o Oídio (na ordem exata em que a IA aprendeu)
+class_names = ['Ferrugem', 'oidio', 'saudavel'] 
 
 def testar_imagem(caminho_imagem):
     if not os.path.exists(caminho_imagem):
-        print(f"Erro: Imagem {caminho_imagem} não encontrada.")
+        print(f"Erro: Imagem '{caminho_imagem}' não encontrada.")
         return
 
-    # Prepara a imagem (mesmo tamanho do treino)
+    # Prepara a imagem (mesmo tamanho do treino: 224x224 pixels)
     img = load_img(caminho_imagem, target_size=(224, 224))
     img_array = img_to_array(img)
-    img_array = tf.expand_dims(img_array, 0) # Cria um lote de 1 imagem
+    img_array = tf.expand_dims(img_array, 0) # Cria um "lote" de 1 imagem para a IA ler
 
     # Faz a previsão
     predictions = model.predict(img_array)
-    score = tf.nn.softmax(predictions[0])
+    
+    # Como o modelo já cospe a probabilidade final (softmax), pegamos direto o resultado
+    score = predictions[0]
+    classe_vencedora = class_names[np.argmax(score)]
+    certeza = 100 * np.max(score)
 
-    print(f"\nResultado para {caminho_imagem}:")
-    print(f"Eu acho que é: {class_names[np.argmax(score)]}")
-    print(f"Certeza: {100 * np.max(score):.2f}%")
+    print("-" * 30)
+    print(f"📷 Resultado para: {caminho_imagem}")
+    print(f"🌱 Diagnóstico: **{classe_vencedora}**")
+    print(f"🎯 Certeza: {certeza:.2f}%\n")
 
-testar_imagem('teste.jpg') 
-print("Modelo carregado com sucesso. Edite o arquivo para testar uma imagem específica.")
+    # Mostra o raio-x das outras opções para você ver como a IA pensou
+    print("Detalhes da análise:")
+    for i in range(len(class_names)):
+        print(f"  - {class_names[i]}: {100 * score[i]:.2f}%")
+    print("-" * 30)
+
+# Chame a função passando o nome da foto que você quer testar
+testar_imagem('teste.jpg')

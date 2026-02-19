@@ -3,7 +3,7 @@ import numpy as np
 from tensorflow.keras.utils import load_img, img_to_array
 
 
-CAMINHO_MODELO = "modelo_soja_v2.tflite" 
+CAMINHO_MODELO = "modelo_soja.tflite" 
 CAMINHO_IMAGEM = "teste_google_oidio.jpg" 
 
 # 1. Carregar o TFLite (Simulando o celular)

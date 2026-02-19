@@ -11,7 +11,7 @@ class Classifier {
   Future<void> loadModel() async {
     try {
       // ATENÇÃO: Nome do modelo atualizado para a versão 2!
-      _interpreter = await Interpreter.fromAsset('assets/modelo_soja_v2.tflite');
+      _interpreter = await Interpreter.fromAsset('assets/modelo_soja.tflite');
       debugPrint('✅ Modelo carregado com sucesso!');
       
       // Imprime o formato de entrada para conferência (ajuda a debugar)
