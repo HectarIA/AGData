@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'screens/selecao_talhao_screen.dart'; // <--- Importe a tela de seleção
+import 'screens/selecao_talhao_screen.dart'; 
 import 'services/database_service.dart';
+import 'core/theme/app_theme.dart'; 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); 
@@ -14,11 +15,11 @@ class AGDataApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'AGdata',
-      // Mudei de HomeScreen() para SelecaoTalhaoScreen()
-      home: SelecaoTalhaoScreen(), 
+      home: const SelecaoTalhaoScreen(), 
+      theme: AppTheme.lightTheme,
     );
   }
 }
