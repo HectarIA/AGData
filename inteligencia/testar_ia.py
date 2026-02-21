@@ -6,7 +6,7 @@ from tensorflow.keras.utils import load_img, img_to_array
 print("Carregando o cérebro da IA...")
 model = tf.keras.models.load_model('modelo_soja_2.keras')
 
-class_names = ['Ferrugem','mancha_alvo' 'oidio', 'saudavel'] 
+classes = ['Ferrugem', 'Mancha Alvo', 'Oídio', 'Saudável']
 
 def testar_imagem(caminho_imagem):
     if not os.path.exists(caminho_imagem):

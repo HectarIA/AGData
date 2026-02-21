@@ -34,7 +34,7 @@ print("Convertendo para TFLite limpo...")
 converter = tf.lite.TFLiteConverter.from_keras_model(modelo_limpo)
 converter.optimizations = [tf.lite.Optimize.DEFAULT]
 
-with open('modelo_soja.tflite', 'wb') as f:
+with open('modelo_soja_2.tflite', 'wb') as f:
     f.write(converter.convert())
 
-print("✅ SUCESSO! O modelo 'modelo_soja.tflite' foi limpo e recriado.")
+print("✅ SUCESSO! O modelo 'modelo_soja_2.tflite' foi limpo e recriado.")

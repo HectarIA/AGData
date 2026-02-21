@@ -28,7 +28,7 @@ interpreter.invoke()
 
 output_data = interpreter.get_tensor(output_details[0]['index'])
 
-classes = ['Ferrugem', 'Oidio', 'Saudavel, Mancha Alvo'] 
+classes = ['Ferrugem', 'Mancha Alvo', 'Oídio', 'Saudável']
 
 print("\n--- RESULTADO DO TFLITE NO PC ---")
 print(f"Array Bruto: {output_data[0]}") 
