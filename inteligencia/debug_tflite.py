@@ -3,10 +3,9 @@ import numpy as np
 from tensorflow.keras.utils import load_img, img_to_array
 
 
-CAMINHO_MODELO = "modelo_soja.tflite" 
+CAMINHO_MODELO = "modelo_soja_2.tflite" 
 CAMINHO_IMAGEM = "teste_google_oidio.jpg" 
 
-# 1. Carregar o TFLite (Simulando o celular)
 interpreter = tf.lite.Interpreter(model_path=CAMINHO_MODELO)
 interpreter.allocate_tensors()
 
@@ -29,7 +28,7 @@ interpreter.invoke()
 
 output_data = interpreter.get_tensor(output_details[0]['index'])
 
-classes = ['Ferrugem', 'Oidio', 'Saudavel'] 
+classes = ['Ferrugem', 'Oidio', 'Saudavel, Mancha Alvo'] 
 
 print("\n--- RESULTADO DO TFLITE NO PC ---")
 print(f"Array Bruto: {output_data[0]}") 

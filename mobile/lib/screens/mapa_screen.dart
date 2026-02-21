@@ -3,7 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../services/database_service.dart';
 import '../models/leitura_model.dart';
-import '../models/talhao_model.dart'; // Importe para listar os talhões no filtro
+import '../models/talhao_model.dart'; 
 
 class MapaScreen extends StatefulWidget {
   const MapaScreen({super.key});
@@ -15,7 +15,6 @@ class MapaScreen extends StatefulWidget {
 class _MapaScreenState extends State<MapaScreen> {
   final DatabaseService _databaseService = DatabaseService();
   
-  // Dados brutos (cache)
   List<LeituraModel> _todasLeituras = [];
   List<TalhaoModel> _todosTalhoes = [];
 
@@ -27,7 +26,7 @@ class _MapaScreenState extends State<MapaScreen> {
 
   // --- ESTADO DOS FILTROS ---
   String? _filtroTalhao;
-  String? _filtroDoenca; // "SAUDÁVEL", "FERRUGEM", "OÍDIO"
+  String? _filtroDoenca;
   DateTime? _dataInicio;
   DateTime? _dataFim;
 
@@ -38,14 +37,13 @@ class _MapaScreenState extends State<MapaScreen> {
   }
 
   Future<void> _inicializarDados() async {
-    // 1. Busca leituras e talhões do banco
     final leituras = await _databaseService.buscarTodasLeituras();
     final talhoes = await _databaseService.buscarTodosTalhoes();
 
     setState(() {
       _todasLeituras = leituras;
       _todosTalhoes = talhoes;
-      _aplicarFiltros(); // Gera os marcadores iniciais (sem filtro)
+      _aplicarFiltros();
       _carregando = false;
     });
   }
@@ -55,6 +53,8 @@ class _MapaScreenState extends State<MapaScreen> {
       case "SAUDÁVEL": return Colors.green;
       case "FERRUGEM": return Colors.red;
       case "OÍDIO": return Colors.orange[700]!;
+      case "INCONCLUSIVO": return Colors.yellow[800]!;
+      case "MANCHA ALVO": return Colors.brown[700]!;
       default: return Colors.grey[700]!;
     }
   }
@@ -144,9 +144,8 @@ class _MapaScreenState extends State<MapaScreen> {
   void _abrirFiltros() {
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, // Permite que o modal cresça se necessário
+      isScrollControlled: true,
       builder: (context) {
-        // Variáveis temporárias para o estado do Modal
         String? tempTalhao = _filtroTalhao;
         String? tempDoenca = _filtroDoenca;
         DateTime? tempInicio = _dataInicio;
@@ -156,7 +155,7 @@ class _MapaScreenState extends State<MapaScreen> {
           builder: (BuildContext context, StateSetter setModalState) {
             return Container(
               padding: const EdgeInsets.all(20),
-              height: 600, // Altura fixa ou dinâmica
+              height: 600,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -181,7 +180,7 @@ class _MapaScreenState extends State<MapaScreen> {
                   const Text("Diagnóstico:", style: TextStyle(fontWeight: FontWeight.bold)),
                   Wrap(
                     spacing: 8,
-                    children: ["SAUDÁVEL", "FERRUGEM", "OÍDIO"].map((tipo) {
+                    children: ["SAUDÁVEL", "FERRUGEM", "OÍDIO", "MANCHA ALVO", "INCONCLUSIVO"].map((tipo) {
                       final selecionado = tempDoenca == tipo;
                       return ChoiceChip(
                         label: Text(tipo),

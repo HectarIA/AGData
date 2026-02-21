@@ -9,8 +9,6 @@ import os
 
 mixed_precision.set_global_policy('mixed_float16')
 
-# --- CONFIGURAÇÕES ---
-# ATENÇÃO: No WSL, o C:\ vira /mnt/c/
 caminho_dataset = "/mnt/c/Users/User/Desktop/AGdata/inteligencia/dataset" 
 
 TAMANHO_IMG = 224
@@ -88,8 +86,7 @@ history = model.fit(
 print("\n--- Fase 2: Ajuste Fino ---")
 base_model.trainable = True
 
-# Vamos treinar as últimas 50 camadas (MobileNet tem 155)
-# Descongelar demais pode estragar os pesos se o dataset for pequeno
+
 fine_tune_at = 100
 for layer in base_model.layers[:fine_tune_at]:
     layer.trainable = False
@@ -105,7 +102,7 @@ history_fine = model.fit(
 )
 
 # --- SALVAMENTO ---
-caminho_modelo = 'modelo_soja.keras'
+caminho_modelo = 'modelo_soja_2.keras'
 model.save(caminho_modelo)
 print(f"\n✅ SUCESSO! Modelo salvo em: {caminho_modelo}")
 

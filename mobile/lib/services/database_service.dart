@@ -1,19 +1,17 @@
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/leitura_model.dart';
-import '../models/talhao_model.dart'; // Importante!
+import '../models/talhao_model.dart';
 
 class DatabaseService {
-  // Mantém a instância do banco de dados aberta para toda a aplicação
   static late Isar isar;
 
-  // Função que inicia o banco (chamada no main.dart)
   static Future<void> initialize() async {
     final dir = await getApplicationDocumentsDirectory();
     isar = await Isar.open(
       [
         LeituraModelSchema, 
-        TalhaoModelSchema // <--- AGORA O BANCO RECONHECE OS TALHÕES
+        TalhaoModelSchema 
       ],
       directory: dir.path,
     );
@@ -33,7 +31,6 @@ class DatabaseService {
 
   // --- FUNÇÕES PARA TALHÕES (ÁREAS DA FAZENDA) ---
 
-  // Salva um novo talhão (ex: "Gleba Norte") no banco
   Future<void> guardarTalhao(TalhaoModel talhao) async {
     await isar.writeTxn(() async {
       await isar.talhaoModels.put(talhao);

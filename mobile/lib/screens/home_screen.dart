@@ -11,10 +11,8 @@ import 'historico_screen.dart';
 import 'mapa_screen.dart'; 
 
 class HomeScreen extends StatefulWidget {
-  // --- A MUDANÇA PRINCIPAL ESTÁ AQUI ---
   final String talhaoAtual; 
   const HomeScreen({super.key, required this.talhaoAtual});
-  // -------------------------------------
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -44,6 +42,8 @@ class _HomeScreenState extends State<HomeScreen> {
       case "SAUDÁVEL": return Colors.green;
       case "FERRUGEM": return Colors.red;
       case "OÍDIO": return Colors.orange[700]!; 
+      case "INCONCLUSIVO": return Colors.yellow[800]!;
+      case "MANCHA ALVO": return Colors.brown[700]!;
       default: return Colors.grey[700]!;
     }
   }
@@ -69,7 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
       locTexto = "📍 Lat: ${lat.toStringAsFixed(5)} | Lng: ${lng.toStringAsFixed(5)}";
     }
 
-    List<String> labels = ["Ferrugem", "Oídio", "Saudável"]; 
+    List<String> labels = ["Ferrugem", "Oídio", "Saudável", "Mancha Alvo"]; 
     double maiorValor = 0.0;
     int indexGanhador = -1;
 
@@ -101,7 +101,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ..dataHora = DateTime.now()
       ..latitude = lat
       ..longitude = lng
-      ..talhao = widget.talhaoAtual // <-- AQUI USAMOS O QUE VEIO DA TELA ANTERIOR
+      ..talhao = widget.talhaoAtual
       ..sincronizado = false;
 
     await _databaseService.guardarLeitura(novaLeitura);

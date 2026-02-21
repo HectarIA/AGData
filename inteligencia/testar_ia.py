@@ -4,18 +4,15 @@ import os
 from tensorflow.keras.utils import load_img, img_to_array
 
 print("Carregando o cérebro da IA...")
-# 1. Atualizado para o formato .keras (que você acabou de treinar)
-model = tf.keras.models.load_model('modelo_soja.keras')
+model = tf.keras.models.load_model('modelo_soja_2.keras')
 
-# 2. Classes atualizadas com o Oídio (na ordem exata em que a IA aprendeu)
-class_names = ['Ferrugem', 'oidio', 'saudavel'] 
+class_names = ['Ferrugem','mancha_alvo' 'oidio', 'saudavel'] 
 
 def testar_imagem(caminho_imagem):
     if not os.path.exists(caminho_imagem):
         print(f"Erro: Imagem '{caminho_imagem}' não encontrada.")
         return
 
-    # Prepara a imagem (mesmo tamanho do treino: 224x224 pixels)
     img = load_img(caminho_imagem, target_size=(224, 224))
     img_array = img_to_array(img)
     img_array = tf.expand_dims(img_array, 0) # Cria um "lote" de 1 imagem para a IA ler

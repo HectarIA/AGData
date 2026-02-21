@@ -24,7 +24,7 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
   DateTime? _dataFiltro;
   String _doencaFiltro = 'Todas';
   double _confiancaFiltro = 0.0;
-  final List<String> _opcoesDoenca = ['Todas', 'FERRUGEM', 'OÍDIO', 'SAUDÁVEL', 'INCONCLUSIVO'];
+  final List<String> _opcoesDoenca = ['Todas', 'FERRUGEM', 'OÍDIO', 'SAUDÁVEL', 'MANCHA ALVO', 'INCONCLUSIVO'];
 
   @override
   void initState() {
@@ -36,7 +36,7 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
     final dados = await _databaseService.buscarTodasLeituras();
     setState(() {
       _todasLeituras = dados.reversed.toList();
-      _leiturasFiltradas = List.from(_todasLeituras); // Inicialmente, mostra tudo
+      _leiturasFiltradas = List.from(_todasLeituras);
       _loading = false;
     });
   }
@@ -44,10 +44,9 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
   // --- LÓGICA DE FILTRAGEM (O Motor de Busca) ---
   void _aplicarFiltros() {
     setState(() {
-      _selecionados.clear(); // Limpa a seleção para evitar enviar coisas escondidas pro WhatsApp
+      _selecionados.clear(); 
 
       _leiturasFiltradas = _todasLeituras.where((leitura) {
-        // 1. Filtro de Data (Lotes por Dia)
         bool passaData = true;
         if (_dataFiltro != null) {
           passaData = leitura.dataHora.year == _dataFiltro!.year &&
@@ -289,7 +288,6 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
                 )
               : ListView.builder(
                   padding: const EdgeInsets.all(12),
-                  // AGORA USA A LISTA FILTRADA!
                   itemCount: _leiturasFiltradas.length,
                   itemBuilder: (context, index) {
                     final leitura = _leiturasFiltradas[index];
