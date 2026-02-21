@@ -71,13 +71,13 @@ class _MapaScreenState extends State<MapaScreen> {
         return false;
       }
       // 3. Filtro de Data
-      if (_dataInicio != null && leitura.dataHora!.isBefore(_dataInicio!)) {
+      if (_dataInicio != null && leitura.dataHora.isBefore(_dataInicio!)) {
         return false;
       }
       if (_dataFim != null) {
         // Ajuste para pegar até o final do dia selecionado (23:59:59)
         final fimDia = _dataFim!.add(const Duration(days: 1)).subtract(const Duration(seconds: 1));
-        if (leitura.dataHora!.isAfter(fimDia)) {
+        if (leitura.dataHora.isAfter(fimDia)) {
           return false;
         }
       }
@@ -92,11 +92,10 @@ class _MapaScreenState extends State<MapaScreen> {
     List<CircleMarker> novosCirculos = [];
 
     for (var leitura in lista) {
-      if (leitura.latitude != null && leitura.latitude != 0.0) {
-        var coordenada = LatLng(leitura.latitude!, leitura.longitude!);
-        Color cor = _pegarCor(leitura.resultadoIA ?? "");
+      if (leitura.latitude != 0.0) {
+        var coordenada = LatLng(leitura.latitude, leitura.longitude);
+        Color cor = _pegarCor(leitura.resultadoIA);
 
-        // Marcador (Pino)
         novosMarcadores.add(
           Marker(
             point: coordenada,
@@ -121,7 +120,7 @@ class _MapaScreenState extends State<MapaScreen> {
         novosCirculos.add(
           CircleMarker(
             point: coordenada,
-            color: cor.withOpacity(0.3),
+            color: cor.withValues(alpha: 0.3),
             borderColor: cor,
             borderStrokeWidth: 2,
             useRadiusInMeter: true,
@@ -187,7 +186,7 @@ class _MapaScreenState extends State<MapaScreen> {
                       return ChoiceChip(
                         label: Text(tipo),
                         selected: selecionado,
-                        selectedColor: _pegarCor(tipo).withOpacity(0.2),
+                        selectedColor: _pegarCor(tipo).withValues(alpha: 0.2),
                         labelStyle: TextStyle(color: selecionado ? _pegarCor(tipo) : Colors.black),
                         onSelected: (bool selected) {
                           setModalState(() {

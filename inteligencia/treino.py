@@ -4,7 +4,7 @@ from tensorflow.keras.applications import MobileNetV2
 from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Dropout, Input
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam
-from tensorflow.keras import mixed_precision # <--- NOVIDADE 1
+from tensorflow.keras import mixed_precision
 import os
 
 mixed_precision.set_global_policy('mixed_float16')
