@@ -17,7 +17,7 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
   List<LeituraModel> _todasLeituras = [];      // Guarda TUDO que vem do banco
   List<LeituraModel> _leiturasFiltradas = [];  // Guarda só o que passa no filtro
   
-  List<int> _selecionados = []; 
+  final List<int> _selecionados = []; 
   bool _loading = true;
 
   // --- VARIÁVEIS DOS FILTROS ---
