@@ -59,7 +59,7 @@ class Classifier {
     ];
 
     // 4. Preparar o buffer de saída (onde a IA vai cuspir as probabilidades)
-    var outputBuffer = List.filled(1 * 5, 0.0).reshape([1, 5]);
+    var outputBuffer = List.filled(1 * 4, 0.0).reshape([1, 4]);
 
     // 5. Rodar a previsão (A mágica acontece aqui)
     _interpreter!.run(input, outputBuffer);

@@ -69,7 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
       locTexto = "📍 Lat: ${lat.toStringAsFixed(5)} | Lng: ${lng.toStringAsFixed(5)}";
     }
 
-    List<String> labels = ["Ferrugem", "Oídio", "Saudável", "Mancha Alvo"]; 
+    List<String> labels = ["Ferrugem", "Mancha Alvo", "Oídio", "Saudável"];
     double maiorValor = 0.0;
     int indexGanhador = -1;
 

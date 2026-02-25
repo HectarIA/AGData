@@ -46,5 +46,5 @@ app.*.map.json
 
 
 /inteligencia/dataset/
-/inteligencia/modelo_soja.h5
-/inteligencia/modelo_soja.keras
+/inteligencia/modelo_soja_2.tflite
+/inteligencia/modelo_soja_2.keras

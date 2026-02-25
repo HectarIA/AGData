@@ -12,7 +12,7 @@ mixed_precision.set_global_policy('mixed_float16')
 caminho_dataset = "/mnt/c/Users/User/Desktop/AGdata/inteligencia/dataset" 
 
 TAMANHO_IMG = 224
-BATCH_SIZE = 64 # Aumentei para 64 pois sua 3060 aguenta e acelera o treino
+BATCH_SIZE = 64 
 EPOCHS_INICIAIS = 10 
 EPOCHS_FINETUNING = 10 
 
@@ -66,7 +66,6 @@ inputs = Input(shape=(TAMANHO_IMG, TAMANHO_IMG, 3))
 x = base_model(inputs, training=False)
 x = GlobalAveragePooling2D()(x)
 x = Dropout(0.2)(x)
-# Importante: A camada de saída deve ser float32 para estabilidade numérica
 outputs = Dense(len(class_names), activation='softmax', dtype='float32')(x)
 
 model = Model(inputs, outputs)
