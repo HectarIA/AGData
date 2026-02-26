@@ -5,6 +5,8 @@ from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Dropout, Inpu
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras import mixed_precision
+import numpy as np
+from sklearn.utils.class_weight import compute_class_weight
 import os
 
 mixed_precision.set_global_policy('mixed_float16')
@@ -51,13 +53,28 @@ validation_generator = train_datagen.flow_from_directory(
     target_size=(TAMANHO_IMG, TAMANHO_IMG),
     batch_size=BATCH_SIZE,
     class_mode='categorical',
-    subset='validation'
+    subset='validation',
+    shuffle=False 
 )
 
 class_names = list(train_generator.class_indices.keys())
 print(f"Classes detectadas: {class_names}")
 
-# --- FASE 1: TRANSFER LEARNING ---
+print("\n--- Calculando Pesos das Classes ---")
+classes_treino = train_generator.classes
+
+pesos_calculados = compute_class_weight(
+    class_weight='balanced',
+    classes=np.unique(classes_treino),
+    y=classes_treino
+)
+
+dicionario_pesos = dict(enumerate(pesos_calculados))
+
+for i, classe in enumerate(class_names):
+    print(f"Peso da classe '{classe}': {dicionario_pesos[i]:.2f}")
+
+
 print("\n--- Construindo MobileNetV2 ---")
 base_model = MobileNetV2(weights='imagenet', include_top=False, input_shape=(TAMANHO_IMG, TAMANHO_IMG, 3))
 base_model.trainable = False
@@ -78,29 +95,27 @@ print("\n--- Fase 1: Treinando Cabeça ---")
 history = model.fit(
     train_generator,
     epochs=EPOCHS_INICIAIS,
-    validation_data=validation_generator
-)
+    validation_data=validation_generator,
+    class_weight=dicionario_pesos)
 
-# --- FASE 2: FINE TUNING ---
 print("\n--- Fase 2: Ajuste Fino ---")
 base_model.trainable = True
-
 
 fine_tune_at = 100
 for layer in base_model.layers[:fine_tune_at]:
     layer.trainable = False
 
-model.compile(optimizer=Adam(learning_rate=1e-5), # Taxa bem baixa
+model.compile(optimizer=Adam(learning_rate=1e-5),
               loss='categorical_crossentropy',
               metrics=['accuracy'])
 
 history_fine = model.fit(
     train_generator,
     epochs=EPOCHS_FINETUNING,
-    validation_data=validation_generator
+    validation_data=validation_generator,
+    class_weight=dicionario_pesos
 )
 
-# --- SALVAMENTO ---
 caminho_modelo = 'modelo_soja_2.keras'
 model.save(caminho_modelo)
 print(f"\n✅ SUCESSO! Modelo salvo em: {caminho_modelo}")
