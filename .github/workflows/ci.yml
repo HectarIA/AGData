@@ -27,3 +27,8 @@ jobs:
         run: |
           cd mobile
           flutter analyze
+
+      - name: Executar Testes Unitarios
+        run: |
+          cd mobile
+          flutter test
