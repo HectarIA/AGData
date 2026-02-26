@@ -10,3 +10,4 @@ Pillow>=9.0.0         # Leitura de imagens
 # Ferramentas Auxiliares e Métricas
 scikit-learn>=1.0.2
 matplotlib>=3.5.0
+
