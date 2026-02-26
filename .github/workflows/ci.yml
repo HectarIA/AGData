@@ -1,0 +1,29 @@
+name: CI Flutter
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  analise_de_codigo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do codigo
+        uses: actions/checkout@v4
+
+      - name: Setup do Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Instalar dependencias
+        run: |
+          cd mobile
+          flutter pub get
+
+      - name: Executar Linter
+        run: |
+          cd mobile
+          flutter analyze
