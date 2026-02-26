@@ -1,6 +1,9 @@
 name: CI Flutter
 
 on:
+  push:
+    branches:
+      - develop
   pull_request:
     branches:
       - main
@@ -27,3 +30,8 @@ jobs:
         run: |
           cd mobile
           flutter analyze
+
+      - name: Executar Testes Unitarios
+        run: |
+          cd mobile
+          flutter test
