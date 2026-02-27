@@ -19,7 +19,7 @@ subprojects {
         if (project.hasProperty("android")) {
             project.extensions.configure<com.android.build.gradle.BaseExtension>("android") {
                 // Resolve o erro do lStar forçando a versão de compilação em todas as libs
-                compileSdkVersion(34) 
+                compileSdkVersion(36) 
                 
                 if (namespace == null) {
                     namespace = project.group.toString()
