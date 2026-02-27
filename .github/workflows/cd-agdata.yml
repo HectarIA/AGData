@@ -1,5 +1,4 @@
-name: CD AGData Release
-
+name: "Z - DEPLOY AUTOMATICO APK" 
 on:
   pull_request:
     branches:
