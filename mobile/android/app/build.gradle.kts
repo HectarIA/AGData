@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.example.mobile"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 34
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -18,27 +18,23 @@ android {
         jvmTarget = "1.8"
     }
 
-    // --- A CORREÇÃO MÁGICA (VERSÃO KOTLIN) ---
-    // Isso impede que o Android comprima o modelo da IA
+    // Impede que o Android comprima os modelos de IA, mantendo-os funcionais
     aaptOptions {
-            noCompress.add("tflite")
-            noCompress.add("lite")
-        }
-    // -----------------------------------------
+        noCompress.add("tflite")
+        noCompress.add("lite")
+    }
 
     defaultConfig {
         applicationId = "com.example.mobile"
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        minSdk = 21 
+        targetSdk = 34 
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
     buildTypes {
         release {
-            // Em Kotlin, o acesso ao debug key é um pouco diferente:
             signingConfig = signingConfigs.getByName("debug")
-            
             isMinifyEnabled = false
             isShrinkResources = false
         }
