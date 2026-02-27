@@ -1,4 +1,4 @@
-name: CD AGData (Entrega Continua)
+name: CD AGData Release
 
 on:
   pull_request:
