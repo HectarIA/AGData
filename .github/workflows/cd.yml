@@ -1,4 +1,4 @@
-name: CD Flutter (Entrega Continua)
+name: CD AGData (Entrega Continua)
 
 on:
   pull_request:
