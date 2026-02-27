@@ -38,6 +38,9 @@ android {
         release {
             // Em Kotlin, o acesso ao debug key é um pouco diferente:
             signingConfig = signingConfigs.getByName("debug")
+            
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }
