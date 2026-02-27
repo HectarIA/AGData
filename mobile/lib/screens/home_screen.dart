@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:geolocator/geolocator.dart';
-import '../classifier.dart';
+import '../classifier.dart'; 
 import '../services/location_service.dart';
 import '../services/database_service.dart';
 import '../models/leitura_model.dart';
@@ -38,7 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Color _pegarCorResultado(String resultado) {
-    switch (resultado) {
+    switch (resultado.toUpperCase()) {
       case "SAUDÁVEL": return Colors.green;
       case "FERRUGEM": return Colors.red;
       case "OÍDIO": return Colors.orange[700]!; 
@@ -56,69 +56,52 @@ class _HomeScreenState extends State<HomeScreen> {
       _localizacaoTexto = "A buscar satélite... 🛰️"; 
     });
 
-    List<double> output = await _classifier.predict(image);
-    Position? pos = await _locationService.getCurrentPosition();
-
-    double lat = 0.0;
-    double lng = 0.0;
-    String locTexto = "GPS indisponível";
-    
-    if (pos != null) {
-      lat = pos.latitude;
-      lng = pos.longitude;
-      locTexto = "📍 Lat: ${lat.toStringAsFixed(5)} | Lng: ${lng.toStringAsFixed(5)}";
-    }
-
-    List<String> labels = ["Ferrugem", "Mancha Alvo", "Oídio", "Saudável"];
-    double maiorValor = 0.0;
-    int indexGanhador = -1;
-
-    for (int i = 0; i < output.length; i++) {
-      if (output[i] > maiorValor) {
-        maiorValor = output[i];
-        indexGanhador = i;
+    try {
+      // 🚀 CORREÇÃO DE TIPAGEM: Recebendo String diretamente da IA
+      String nomeFinal = await _classifier.predict(image);
+      
+      Position? pos = await _locationService.getCurrentPosition();
+      double lat = 0.0;
+      double lng = 0.0;
+      String locTexto = "GPS indisponível";
+      
+      if (pos != null) {
+        lat = pos.latitude;
+        lng = pos.longitude;
+        locTexto = "📍 Lat: ${lat.toStringAsFixed(5)} | Lng: ${lng.toStringAsFixed(5)}";
       }
-    }
 
-    String nomeFinal = "Não identificado";
-    if (output.isNotEmpty && indexGanhador != -1) {
-      if (maiorValor < 0.5) {
-        nomeFinal = "Inconclusivo";
-      } else {
-        nomeFinal = indexGanhador < labels.length ? labels[indexGanhador] : "Desconhecido";
-      }
-    }
+      final appDir = await getApplicationDocumentsDirectory();
+      final nomeFicheiro = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final imagemGuardada = await image.copy('${appDir.path}/$nomeFicheiro');
 
-    final appDir = await getApplicationDocumentsDirectory();
-    final nomeFicheiro = '${DateTime.now().millisecondsSinceEpoch}.jpg';
-    final imagemGuardada = await image.copy('${appDir.path}/$nomeFicheiro');
+      final novaLeitura = LeituraModel()
+        ..resultadoIA = nomeFinal.toUpperCase()
+        ..confianca = 1.0 
+        ..caminhoImagem = imagemGuardada.path
+        ..dataHora = DateTime.now()
+        ..latitude = lat
+        ..longitude = lng
+        ..talhao = widget.talhaoAtual
+        ..sincronizado = false;
 
-    // Salvando no banco com o talhão correto
-    final novaLeitura = LeituraModel()
-      ..resultadoIA = nomeFinal.toUpperCase()
-      ..confianca = maiorValor 
-      ..caminhoImagem = imagemGuardada.path
-      ..dataHora = DateTime.now()
-      ..latitude = lat
-      ..longitude = lng
-      ..talhao = widget.talhaoAtual
-      ..sincronizado = false;
+      await _databaseService.guardarLeitura(novaLeitura);
 
-    await _databaseService.guardarLeitura(novaLeitura);
-    debugPrint("✅ Leitura guardada no talhão: ${widget.talhaoAtual}");
-
-    setState(() {
-      _loading = false;
-      _localizacaoTexto = locTexto;
-
-      if (nomeFinal == "Inconclusivo") {
-        _resultado = nomeFinal;
-        _confianca = "Tente melhorar a iluminação";
-      } else {
+      setState(() {
+        _loading = false;
+        _localizacaoTexto = locTexto;
         _resultado = nomeFinal.toUpperCase();
-        _confianca = "${(maiorValor * 100).toStringAsFixed(1)}% de certeza";
-      }
-    });
+        _confianca = "Análise concluída com sucesso";
+      });
+
+    } catch (e) {
+      debugPrint("Erro ao processar imagem: $e");
+      setState(() {
+        _loading = false;
+        _resultado = "ERRO NA ANÁLISE";
+        _confianca = "Tente novamente";
+      });
+    }
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -138,30 +121,17 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // Mostra o nome do talhão no topo
         title: Text(widget.talhaoAtual, style: const TextStyle(color: Colors.white)),
         backgroundColor: const Color(0xFF2E7D32),
         centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.map, color: Colors.white),
-            tooltip: 'Ver Zonamento',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const MapaScreen()),
-              );
-            },
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const MapaScreen())),
           ),
           IconButton(
             icon: const Icon(Icons.list_alt, color: Colors.white),
-            tooltip: 'Abrir Histórico',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const HistoricoScreen()),
-              );
-            },
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const HistoricoScreen())),
           )
         ],
       ),
@@ -197,17 +167,12 @@ class _HomeScreenState extends State<HomeScreen> {
                      ],
                    ),
                 ),
-              
               const SizedBox(height: 30),
-              
               _loading 
                 ? const CircularProgressIndicator(color: Colors.green)
                 : Column(
                     children: [
-                      Text(
-                        _resultado,
-                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: _pegarCorResultado(_resultado)),
-                      ),
+                      Text(_resultado, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: _pegarCorResultado(_resultado))),
                       const SizedBox(height: 5),
                       Text(_confianca, style: const TextStyle(fontSize: 18, color: Colors.grey, fontWeight: FontWeight.w500)),
                       const SizedBox(height: 10),
@@ -219,9 +184,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                     ],
                   ),
-
               const SizedBox(height: 40),
-              
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -229,22 +192,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     onPressed: () => _pickImage(ImageSource.camera),
                     icon: const Icon(Icons.camera_alt),
                     label: const Text('Câmara'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green[700],
-                      foregroundColor: Colors.white, 
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-                    ),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green[700], foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15)),
                   ),
                   const SizedBox(width: 20),
                   ElevatedButton.icon(
                     onPressed: () => _pickImage(ImageSource.gallery),
                     icon: const Icon(Icons.image),
                     label: const Text('Galeria'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue[700],
-                      foregroundColor: Colors.white, 
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-                    ),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blue[700], foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15)),
                   ),
                 ],
               ),

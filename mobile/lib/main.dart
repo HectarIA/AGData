@@ -5,7 +5,13 @@ import 'core/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); 
-  await DatabaseService.initialize(); 
+  
+  try {
+    await DatabaseService.initialize();
+    debugPrint('✅ Banco de dados Isar inicializado.');
+  } catch (e) {
+    debugPrint('❌ Erro ao inicializar Isar: $e');
+  }
 
   runApp(const AGDataApp());
 }
