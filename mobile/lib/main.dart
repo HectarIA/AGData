@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'screens/selecao_talhao_screen.dart'; 
-import 'services/database_service.dart';
+import 'features/diagnostico/presentation/pages/selecao_talhao_screen.dart'; 
+import 'features/diagnostico/data/datasources/database_service.dart';
 import 'core/theme/app_theme.dart'; 
 
 void main() async {
