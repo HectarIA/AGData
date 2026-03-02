@@ -65,7 +65,7 @@ class MapaController extends ChangeNotifier {
         final cor = _pegarCor(l.resultadoIA);
         
         markers.add(Marker(point: pos, width: 50, height: 50, child: Icon(Icons.location_on, color: cor, size: 40)));
-        circles.add(CircleMarker(point: pos, color: cor.withOpacity(0.3), borderColor: cor, borderStrokeWidth: 2, useRadiusInMeter: true, radius: 50));
+        circles.add(CircleMarker(point: pos, color: cor.withValues(alpha: 0.3), borderColor: cor, borderStrokeWidth: 2, useRadiusInMeter: true, radius: 50));
       }
     }
     if (markers.isNotEmpty) centroMapa = markers.first.point;
