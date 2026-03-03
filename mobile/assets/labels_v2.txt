@@ -2,3 +2,4 @@ Ferrugem
 mancha_alvo
 oidio
 saudavel
+septoria

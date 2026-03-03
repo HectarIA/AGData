@@ -21,8 +21,6 @@ dependencies:
   url_launcher: ^6.3.2
   flutter_map: ^8.2.2
   latlong2: ^0.9.1
-  
-
 
 dev_dependencies:
   flutter_test:
@@ -35,4 +33,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/models/modelo_soja_2.tflite
     - assets/
+    - assets/models/
+    - assets/labels_v2.txt
