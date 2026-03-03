@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import '../models/leitura_model.dart';
-import '../services/database_service.dart';
+import '../../data/models/leitura_model.dart';
+import '../../data/datasources/database_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class HistoricoScreen extends StatefulWidget {
@@ -13,18 +13,25 @@ class HistoricoScreen extends StatefulWidget {
 
 class _HistoricoScreenState extends State<HistoricoScreen> {
   final DatabaseService _databaseService = DatabaseService();
-  
-  List<LeituraModel> _todasLeituras = [];      // Guarda TUDO que vem do banco
-  List<LeituraModel> _leiturasFiltradas = [];  // Guarda só o que passa no filtro
-  
-  final List<int> _selecionados = []; 
+
+  List<LeituraModel> _todasLeituras = []; // Guarda TUDO que vem do banco
+  List<LeituraModel> _leiturasFiltradas = []; // Guarda só o que passa no filtro
+
+  final List<int> _selecionados = [];
   bool _loading = true;
 
   // --- VARIÁVEIS DOS FILTROS ---
   DateTime? _dataFiltro;
   String _doencaFiltro = 'Todas';
   double _confiancaFiltro = 0.0;
-  final List<String> _opcoesDoenca = ['Todas', 'FERRUGEM', 'OÍDIO', 'SAUDÁVEL', 'MANCHA ALVO', 'INCONCLUSIVO'];
+  final List<String> _opcoesDoenca = [
+    'Todas',
+    'FERRUGEM',
+    'OÍDIO',
+    'SAUDÁVEL',
+    'MANCHA ALVO',
+    'INCONCLUSIVO'
+  ];
 
   @override
   void initState() {
@@ -34,33 +41,32 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
 
   Future<void> _carregarDados() async {
     final dados = await _databaseService.buscarTodasLeituras();
-    setState(() {
-      _todasLeituras = dados.reversed.toList();
-      _leiturasFiltradas = List.from(_todasLeituras);
-      _loading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _todasLeituras = dados.reversed.toList();
+        _leiturasFiltradas = List.from(_todasLeituras);
+        _loading = false;
+      });
+    }
   }
 
-  // --- LÓGICA DE FILTRAGEM (O Motor de Busca) ---
+  // --- LÓGICA DE FILTRAGEM ---
   void _aplicarFiltros() {
     setState(() {
-      _selecionados.clear(); 
-
+      _selecionados.clear();
       _leiturasFiltradas = _todasLeituras.where((leitura) {
         bool passaData = true;
         if (_dataFiltro != null) {
           passaData = leitura.dataHora.year == _dataFiltro!.year &&
-                      leitura.dataHora.month == _dataFiltro!.month &&
-                      leitura.dataHora.day == _dataFiltro!.day;
+              leitura.dataHora.month == _dataFiltro!.month &&
+              leitura.dataHora.day == _dataFiltro!.day;
         }
 
-        // 2. Filtro de Tipo de Análise (Doença)
         bool passaDoenca = true;
         if (_doencaFiltro != 'Todas') {
           passaDoenca = leitura.resultadoIA == _doencaFiltro;
         }
 
-        // 3. Filtro de Confiança (Preço de E-commerce)
         bool passaConfianca = leitura.confianca >= _confiancaFiltro;
 
         return passaData && passaDoenca && passaConfianca;
@@ -68,18 +74,16 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
     });
   }
 
-  // --- MENU INFERIOR DE FILTROS (BottomSheet) ---
+  // --- MENU INFERIOR DE FILTROS ---
   void _abrirMenuDeFiltros() {
     showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20))
-      ),
-      builder: (ctx) {
-        // StatefulBuilder é necessário para atualizar a tela do menu deslizante em tempo real
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setModalState) {
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        builder: (ctx) {
+          return StatefulBuilder(
+              builder: (BuildContext context, StateSetter setModalState) {
             return Padding(
               padding: const EdgeInsets.all(24.0),
               child: Column(
@@ -89,22 +93,27 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text("Filtrar Leituras", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                      IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context))
+                      const Text("Filtrar Leituras",
+                          style: TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.bold)),
+                      IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context))
                     ],
                   ),
                   const Divider(),
                   const SizedBox(height: 10),
-
-                  // 1. Filtro de Data (Lotes)
-                  const Text("Lote por Dia:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const Text("Lote por Dia:",
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(
-                      _dataFiltro == null 
-                        ? "Todas as datas (Mostrar tudo)" 
-                        : "Dia: ${_dataFiltro!.day.toString().padLeft(2, '0')}/${_dataFiltro!.month.toString().padLeft(2, '0')}/${_dataFiltro!.year}",
-                      style: TextStyle(color: _dataFiltro == null ? Colors.grey : Colors.black),
+                      _dataFiltro == null
+                          ? "Todas as datas (Mostrar tudo)"
+                          : "Dia: ${_dataFiltro!.day.toString().padLeft(2, '0')}/${_dataFiltro!.month.toString().padLeft(2, '0')}/${_dataFiltro!.year}",
+                      style: TextStyle(
+                          color: _dataFiltro == null ? Colors.grey : Colors.black),
                     ),
                     trailing: const Icon(Icons.calendar_month, color: Colors.green),
                     onTap: () async {
@@ -121,9 +130,9 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
                     },
                   ),
                   const SizedBox(height: 10),
-
-                  // 2. Filtro de Doença
-                  const Text("Tipo de Análise:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const Text("Tipo de Análise:",
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   DropdownButton<String>(
                     isExpanded: true,
                     value: _doencaFiltro,
@@ -139,20 +148,22 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
                     },
                   ),
                   const SizedBox(height: 20),
-
-                  // 3. Filtro de Confiança (Slider)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text("Grau de Certeza Mínimo:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      Text("${(_confiancaFiltro * 100).toInt()}%", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                      const Text("Grau de Certeza Mínimo:",
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text("${(_confiancaFiltro * 100).toInt()}%",
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, color: Colors.green)),
                     ],
                   ),
                   Slider(
                     value: _confiancaFiltro,
                     min: 0.0,
                     max: 1.0,
-                    divisions: 20, // Pula de 5 em 5%
+                    divisions: 20,
                     activeColor: Colors.green,
                     inactiveColor: Colors.green[100],
                     onChanged: (valor) {
@@ -161,17 +172,15 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
                     },
                   ),
                   const SizedBox(height: 20),
-
-                  // Botão de Limpar Tudo
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       icon: const Icon(Icons.clear_all, color: Colors.red),
-                      label: const Text("Limpar Filtros", style: TextStyle(color: Colors.red)),
+                      label: const Text("Limpar Filtros",
+                          style: TextStyle(color: Colors.red)),
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.red),
-                        padding: const EdgeInsets.symmetric(vertical: 12)
-                      ),
+                          side: const BorderSide(color: Colors.red),
+                          padding: const EdgeInsets.symmetric(vertical: 12)),
                       onPressed: () {
                         setModalState(() {
                           _dataFiltro = null;
@@ -186,23 +195,25 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
                 ],
               ),
             );
-          }
-        );
-      }
-    );
+          });
+        });
   }
 
-  // --- FUNÇÕES DE INTERFACE PADRÃO (Mesmas de antes) ---
+  // --- FUNÇÕES DE APOIO ---
   String _formatarData(DateTime data) {
     return "${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}/${data.year} às ${data.hour.toString().padLeft(2, '0')}:${data.minute.toString().padLeft(2, '0')}";
   }
 
   Color _pegarCorResultado(String resultado) {
     switch (resultado) {
-      case "SAUDÁVEL": return Colors.green;
-      case "FERRUGEM": return Colors.red;
-      case "OÍDIO": return Colors.orange[700]!;
-      default: return Colors.grey[700]!;
+      case "SAUDÁVEL":
+        return Colors.green;
+      case "FERRUGEM":
+        return Colors.red;
+      case "OÍDIO":
+        return Colors.orange[700]!;
+      default:
+        return Colors.grey[700]!;
     }
   }
 
@@ -217,8 +228,8 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
   }
 
   Future<void> _enviarRelatorioWhatsApp() async {
-    // Busca na lista filtrada
-    final itensMarcados = _leiturasFiltradas.where((l) => _selecionados.contains(l.id)).toList();
+    final itensMarcados =
+        _leiturasFiltradas.where((l) => _selecionados.contains(l.id)).toList();
     if (itensMarcados.isEmpty) return;
 
     StringBuffer sb = StringBuffer();
@@ -230,7 +241,7 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
       final item = itensMarcados[i];
       sb.writeln("*Foco ${i + 1} - ${item.resultadoIA}*");
       sb.writeln("Precisão: ${(item.confianca * 100).toStringAsFixed(1)}%");
-      final linkMapa = "https://maps.google.com/?q=${item.latitude},${item.longitude}";
+      final linkMapa = "https://www.google.com/maps/search/?api=1&query=${item.latitude},${item.longitude}";
       sb.writeln("📍 Localização: $linkMapa\n");
     }
     sb.writeln("Aguardando orientações de manejo. 🚜");
@@ -256,11 +267,11 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Relatórios de Campo', style: TextStyle(color: Colors.white, fontSize: 18)),
+        title: const Text('Relatórios de Campo',
+            style: TextStyle(color: Colors.white, fontSize: 18)),
         backgroundColor: const Color(0xFF2E7D32),
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          // <-- NOVO BOTÃO DE FILTRO AQUI
           IconButton(
             icon: const Icon(Icons.filter_list),
             tooltip: 'Filtrar Análises',
@@ -282,7 +293,8 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
                     children: [
                       Icon(Icons.search_off, size: 60, color: Colors.grey),
                       SizedBox(height: 10),
-                      Text("Nenhuma análise encontrada.", style: TextStyle(fontSize: 16, color: Colors.grey)),
+                      Text("Nenhuma análise encontrada.",
+                          style: TextStyle(fontSize: 16, color: Colors.grey)),
                     ],
                   ),
                 )
@@ -298,8 +310,8 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
                       margin: const EdgeInsets.only(bottom: 12),
                       shape: RoundedRectangleBorder(
                         side: BorderSide(
-                          color: isSelecionado ? Colors.green : Colors.transparent, 
-                          width: 2
+                          color: isSelecionado ? Colors.green : Colors.transparent,
+                          width: 2,
                         ),
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -318,19 +330,22 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
                                     Text(
                                       leitura.resultadoIA,
                                       style: TextStyle(
-                                        fontSize: 18, 
-                                        fontWeight: FontWeight.bold, 
-                                        color: _pegarCorResultado(leitura.resultadoIA)
-                                      ),
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: _pegarCorResultado(
+                                              leitura.resultadoIA)),
                                     ),
                                     Text(
                                       "Confiança: ${(leitura.confianca * 100).toStringAsFixed(1)}%",
-                                      style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.w600),
+                                      style: const TextStyle(
+                                          color: Colors.grey,
+                                          fontWeight: FontWeight.w600),
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
                                       _formatarData(leitura.dataHora),
-                                      style: const TextStyle(fontSize: 12, color: Colors.black54),
+                                      style: const TextStyle(
+                                          fontSize: 12, color: Colors.black54),
                                     ),
                                   ],
                                 ),
@@ -338,7 +353,8 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
                               Checkbox(
                                 value: isSelecionado,
                                 activeColor: Colors.green,
-                                onChanged: (value) => _alternarSelecao(leitura.id),
+                                onChanged: (value) =>
+                                    _alternarSelecao(leitura.id),
                               )
                             ],
                           ),
@@ -365,7 +381,9 @@ class ClipRidge extends StatelessWidget {
         width: 70,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) => Container(
-          height: 70, width: 70, color: Colors.grey[300],
+          height: 70,
+          width: 70,
+          color: Colors.grey[300],
           child: const Icon(Icons.broken_image, color: Colors.grey),
         ),
       ),
