@@ -1,5 +1,6 @@
 Ferrugem
 mancha_alvo
+mildio
 oidio
 saudavel
 septoria
