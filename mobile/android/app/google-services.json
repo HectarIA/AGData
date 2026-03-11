@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "70914324775",
+    "project_id": "hectaria-agdata-026",
+    "storage_bucket": "hectaria-agdata-026.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:70914324775:android:6e89c65dd3bc5020295102",
+        "android_client_info": {
+          "package_name": "com.example.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAkrjGr1QbegkVLLNRrA-fe0n9t8egCFbo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
