@@ -15,6 +15,15 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final HomeController _controller = HomeController();
 
+  // ADICIONADO: initState para pedir permissões ao abrir a tela
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _controller.solicitarPermissoesIniciais();
+    });
+  }
+
   Color _pegarCorResultado(String resultado) {
     switch (resultado.toUpperCase()) {
       case "SAUDÁVEL": return Colors.green;

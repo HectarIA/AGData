@@ -3,17 +3,19 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 
-// Ajuste o caminho abaixo conforme a sua estrutura de pastas
 import '../../data/models/leitura_model.dart';
 import '../../data/datasources/classifier.dart';
 import '../../data/datasources/location_service.dart';
 import '../../data/datasources/database_service.dart';
+import '../../data/services/metadata_service.dart';
 
 class HomeController extends ChangeNotifier {
   final Classifier _classifier = Classifier();
   final LocationService _locationService = LocationService();
   final DatabaseService _databaseService = DatabaseService();
+  final MetadataService _metadataService = MetadataService();
   final ImagePicker _picker = ImagePicker();
 
   File? _image;
@@ -32,57 +34,110 @@ class HomeController extends ChangeNotifier {
     _classifier.loadModel();
   }
 
+  Future<void> solicitarPermissoesIniciais() async {
+    Map<Permission, PermissionStatus> statuses = await [
+      Permission.location,
+      Permission.camera,
+      Permission.storage,
+      Permission.photos,
+      Permission.accessMediaLocation,
+    ].request();
+
+    statuses.forEach((permission, status) {
+      debugPrint('Permissão ${permission.toString()}: $status');
+    });
+  }
+
   Future<void> pickAndProcessImage(ImageSource source, String talhao) async {
-    final pickedFile = await _picker.pickImage(source: source);
+    if (source == ImageSource.camera) {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        await Geolocator.openLocationSettings();
+        return;
+      }
+    }
+
+    final pickedFile = await _picker.pickImage(
+      source: source,
+      imageQuality: 100, 
+    );
+    
     if (pickedFile == null) return;
 
     _image = File(pickedFile.path);
     notifyListeners();
-    await _processarImagem(_image!, talhao);
+    
+    await _processarImagem(_image!, talhao, source);
   }
 
-  Future<void> _processarImagem(File image, String talhao) async {
+  Future<void> _processarImagem(File image, String talhao, ImageSource source) async {
     _loading = true;
     _resultado = "A analisar...";
     _confianca = "...";
-    _localizacaoTexto = "A buscar satélite... 🛰️";
+    _localizacaoTexto = "A processar localização... 🛰️";
     notifyListeners();
 
     try {
-      // 1. Recebe o resultado como um Mapa (label + confidence)
       final Map<String, dynamic> resultadoIA = await _classifier.predict(image);
       final String nomeFinal = resultadoIA['label'] ?? "Erro";
-      final double confianca = resultadoIA['confidence'] ?? 0.0;
+      final double confiancaIA = resultadoIA['confidence'] ?? 0.0;
 
-      // 2. Busca localização
-      final Position? pos = await _locationService.getCurrentPosition();
-      
+      double lat = 0.0;
+      double lng = 0.0;
+      bool localizacaoObtida = false;
+
+      if (source == ImageSource.gallery) {
+        final coordsMeta = await _metadataService.extrairLocalizacaoDaFoto(image);
+        if (coordsMeta != null) {
+          lat = coordsMeta['latitude']!;
+          lng = coordsMeta['longitude']!;
+          localizacaoObtida = true;
+        } else {
+          _image = null;
+          _resultado = "ERRO NA GALERIA";
+          _confianca = "Foto sem GPS original";
+          _localizacaoTexto = "Metadados ausentes ❌";
+          return;
+        }
+      } else {
+        final Position? pos = await _locationService.getCurrentPosition();
+        if (pos != null) {
+          lat = pos.latitude;
+          lng = pos.longitude;
+          localizacaoObtida = true;
+        }
+      }
+
+      if (!localizacaoObtida || (lat == 0.0 && lng == 0.0)) {
+        _image = null;
+        _resultado = "SEM LOCALIZAÇÃO";
+        _confianca = "GPS não detectado";
+        _localizacaoTexto = "Localização obrigatória ❌";
+        return;
+      }
+
       final appDir = await getApplicationDocumentsDirectory();
       final nomeFicheiro = '${DateTime.now().millisecondsSinceEpoch}.jpg';
       final imagemGuardada = await image.copy('${appDir.path}/$nomeFicheiro');
 
-      // 3. Monta o modelo de dados
       final novaLeitura = LeituraModel()
         ..resultadoIA = nomeFinal.toUpperCase()
-        ..confianca = confianca // Agora usa o valor real da IA
+        ..confianca = confiancaIA
         ..caminhoImagem = imagemGuardada.path
         ..dataHora = DateTime.now()
-        ..latitude = pos?.latitude ?? 0.0
-        ..longitude = pos?.longitude ?? 0.0
+        ..latitude = lat
+        ..longitude = lng
         ..talhao = talhao
         ..sincronizado = false;
 
       await _databaseService.guardarLeitura(novaLeitura);
 
-      // 4. Atualiza a tela com os dados reais
       _resultado = nomeFinal.toUpperCase();
-      _confianca = "Precisão: ${(confianca * 100).toStringAsFixed(1)}%";
-      _localizacaoTexto = pos != null 
-          ? "📍 ${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)}" 
-          : "GPS indisponível";
+      _confianca = "Precisão: ${(confiancaIA * 100).toStringAsFixed(1)}%";
+      _localizacaoTexto = "📍 ${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}";
 
     } catch (e) {
-      debugPrint("ERRO NO CONTROLLER: $e");
+      debugPrint("ERRO NO HOME_CONTROLLER: $e");
       _resultado = "ERRO NA ANÁLISE";
       _confianca = "Tente novamente";
     } finally {
