@@ -49,6 +49,14 @@ class HomeController extends ChangeNotifier {
   }
 
   Future<void> pickAndProcessImage(ImageSource source, String talhao) async {
+    if (source == ImageSource.camera) {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        await Geolocator.openLocationSettings();
+        return;
+      }
+    }
+
     final pickedFile = await _picker.pickImage(
       source: source,
       imageQuality: 100, 
@@ -84,24 +92,26 @@ class HomeController extends ChangeNotifier {
           lat = coordsMeta['latitude']!;
           lng = coordsMeta['longitude']!;
           localizacaoObtida = true;
-          debugPrint("📍 Localização extraída dos metadados EXIF com sucesso.");
+        } else {
+          _image = null;
+          _resultado = "ERRO NA GALERIA";
+          _confianca = "Foto sem GPS original";
+          _localizacaoTexto = "Metadados ausentes ❌";
+          return;
         }
-      }
-
-      if (!localizacaoObtida) {
+      } else {
         final Position? pos = await _locationService.getCurrentPosition();
         if (pos != null) {
           lat = pos.latitude;
           lng = pos.longitude;
           localizacaoObtida = true;
-          debugPrint("🛰️ Localização obtida via sensor GPS do dispositivo.");
         }
       }
 
       if (!localizacaoObtida || (lat == 0.0 && lng == 0.0)) {
         _image = null;
-        _resultado = "FOTO REJEITADA";
-        _confianca = "A imagem não possui GPS";
+        _resultado = "SEM LOCALIZAÇÃO";
+        _confianca = "GPS não detectado";
         _localizacaoTexto = "Localização obrigatória ❌";
         return;
       }
