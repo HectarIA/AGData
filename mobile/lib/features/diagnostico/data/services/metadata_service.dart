@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:exif/exif.dart';
+import 'package:flutter/foundation.dart';
 
 class MetadataService {
   Future<Map<String, double>?> extrairLocalizacaoDaFoto(File imagem) async {
@@ -30,7 +31,7 @@ class MetadataService {
         };
       }
     } catch (e) {
-      print('Erro ao ler metadados: $e');
+      debugPrint('Erro ao ler metadados: $e');
     }
     return null;
   }
