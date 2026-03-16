@@ -9,9 +9,7 @@ class SyncRepository {
   final ConnectivityService _connectivity = ConnectivityService();
 
   Future<void> sincronizarLeituras() async {
-    if (!await _connectivity.triplePingCheck()) {
-      return;
-    }
+    if (!await _connectivity.triplePingCheck()) return;
 
     final leiturasPendentes = await DatabaseService.isar.leituraModels
         .filter()
@@ -20,25 +18,33 @@ class SyncRepository {
 
     if (leiturasPendentes.isEmpty) return;
 
-    for (var leitura in leiturasPendentes) {
-      try {
-       await _firestore.collection('diagnosticos').add({
-          'doenca': leitura.resultadoIA,
-          'confianca': leitura.confianca,
-          'data': leitura.dataHora.toIso8601String(),
-          'latitude': leitura.latitude,
-          'longitude': leitura.longitude,
-          'talhao': leitura.talhao,
-          'sincronizadoEm': FieldValue.serverTimestamp(),
-        });
+    final batch = _firestore.batch();
+    final collection = _firestore.collection('diagnosticos');
 
-        await DatabaseService.isar.writeTxn(() async {
+    for (var leitura in leiturasPendentes) {
+      final docRef = collection.doc(); 
+      batch.set(docRef, {
+        'doenca': leitura.resultadoIA,
+        'confianca': leitura.confianca,
+        'data': leitura.dataHora.toIso8601String(),
+        'latitude': leitura.latitude,
+        'longitude': leitura.longitude,
+        'talhao': leitura.talhao,
+        'sincronizadoEm': FieldValue.serverTimestamp(),
+      });
+    }
+
+    try {
+      await batch.commit();
+
+      await DatabaseService.isar.writeTxn(() async {
+        for (var leitura in leiturasPendentes) {
           leitura.sincronizado = true;
           await DatabaseService.isar.leituraModels.put(leitura);
-        });
-      } catch (e) {
-        continue;
-      }
+        }
+      });
+    } catch (e) {
+      rethrow;
     }
   }
 }

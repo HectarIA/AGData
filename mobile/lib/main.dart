@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'features/diagnostico/presentation/pages/selecao_talhao_screen.dart'; 
 import 'features/diagnostico/data/datasources/database_service.dart';
+import 'infra/repositories/sync_repository.dart';
 import 'core/theme/app_theme.dart'; 
 
 void main() async {
@@ -24,7 +25,19 @@ void main() async {
     debugPrint('Erro ao inicializar Isar: $e');
   }
 
+  _dispararSincronizacaoAutomatica();
+
   runApp(const AGDataApp());
+}
+
+void _dispararSincronizacaoAutomatica() async {
+  final syncRepo = SyncRepository();
+  try {
+    await syncRepo.sincronizarLeituras();
+    debugPrint('[AUTO-SYNC] Sincronização inicial finalizada.');
+  } catch (e) {
+    debugPrint('[AUTO-SYNC] Falha na sincronização automática: $e');
+  }
 }
 
 class AGDataApp extends StatelessWidget {
