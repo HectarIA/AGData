@@ -136,11 +136,12 @@ class _MapaScreenState extends State<MapaScreen> {
                     urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     userAgentPackageName: 'com.agdata.app',
                     tileProvider: CachedTileProvider(
-                      // Configuração correta do Store com limite de tamanho
                       store: HiveCacheStore(
                         cachePath,
                         hiveBoxName: 'agdata_tiles',
                       ),
+                      // --- ALTERAÇÃO AQUI: Expira o visual do mapa após 30 dias ---
+                      maxStale: const Duration(days: 30),
                     ),
                   ),
                   CircleLayer(circles: _controller.circles),
