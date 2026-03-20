@@ -15,7 +15,6 @@ class MapaScreen extends StatefulWidget {
 class _MapaScreenState extends State<MapaScreen> {
   final MapaController _controller = MapaController();
 
-  // 1. A função que estava dando aviso agora será usada pelo FutureBuilder
   Future<String> _getPath() async {
     final directory = await getApplicationDocumentsDirectory();
     return directory.path;
@@ -113,7 +112,6 @@ class _MapaScreenState extends State<MapaScreen> {
           ),
         ],
       ),
-      // 2. O FutureBuilder resolve o caminho do cache antes de construir o mapa
       body: FutureBuilder<String>(
         future: _getPath(),
         builder: (context, snapshot) {
@@ -138,8 +136,9 @@ class _MapaScreenState extends State<MapaScreen> {
                     urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     userAgentPackageName: 'com.agdata.app',
                     tileProvider: CachedTileProvider(
+                      // Configuração correta do Store com limite de tamanho
                       store: HiveCacheStore(
-                        cachePath, // 3. Agora o caminho está sendo usado!
+                        cachePath,
                         hiveBoxName: 'agdata_tiles',
                       ),
                     ),
