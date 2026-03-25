@@ -63,7 +63,21 @@ const LeituraModelSchema = CollectionSchema(
   deserialize: _leituraModelDeserialize,
   deserializeProp: _leituraModelDeserializeProp,
   idName: r'id',
-  indexes: {},
+  indexes: {
+    r'sincronizado': IndexSchema(
+      id: -5635005241243394166,
+      name: r'sincronizado',
+      unique: false,
+      replace: false,
+      properties: [
+        IndexPropertySchema(
+          name: r'sincronizado',
+          type: IndexType.value,
+          caseSensitive: false,
+        )
+      ],
+    )
+  },
   links: {},
   embeddedSchemas: {},
   getId: _leituraModelGetId,
@@ -167,6 +181,14 @@ extension LeituraModelQueryWhereSort
       return query.addWhereClause(const IdWhereClause.any());
     });
   }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterWhere> anySincronizado() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(
+        const IndexWhereClause.any(indexName: r'sincronizado'),
+      );
+    });
+  }
 }
 
 extension LeituraModelQueryWhere
@@ -235,6 +257,51 @@ extension LeituraModelQueryWhere
         upper: upperId,
         includeUpper: includeUpper,
       ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterWhereClause>
+      sincronizadoEqualTo(bool sincronizado) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'sincronizado',
+        value: [sincronizado],
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterWhereClause>
+      sincronizadoNotEqualTo(bool sincronizado) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'sincronizado',
+              lower: [],
+              upper: [sincronizado],
+              includeUpper: false,
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'sincronizado',
+              lower: [sincronizado],
+              includeLower: false,
+              upper: [],
+            ));
+      } else {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'sincronizado',
+              lower: [sincronizado],
+              includeLower: false,
+              upper: [],
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'sincronizado',
+              lower: [],
+              upper: [sincronizado],
+              includeUpper: false,
+            ));
+      }
     });
   }
 }

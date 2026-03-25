@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import '../controllers/selecao_talhao_controller.dart'; // Ajuste o path conforme necessário
+import '../controllers/selecao_talhao_controller.dart'; 
 import 'home_screen.dart';
+import '/../infra/repositories/sync_repository.dart';
+import '/../infra/services/connectivity_service.dart';
 
 class SelecaoTalhaoScreen extends StatefulWidget {
   const SelecaoTalhaoScreen({super.key});
@@ -11,6 +13,46 @@ class SelecaoTalhaoScreen extends StatefulWidget {
 
 class _SelecaoTalhaoScreenState extends State<SelecaoTalhaoScreen> {
   final SelecaoTalhaoController _controller = SelecaoTalhaoController();
+  final SyncRepository _syncRepo = SyncRepository();
+  final ConnectivityService _connectivity = ConnectivityService();
+  bool _isSyncing = false;
+
+  Future<void> _handleManualSync() async {
+    setState(() => _isSyncing = true);
+    
+    final isStable = await _connectivity.triplePingCheck();
+    
+    if (isStable) {
+      try {
+        await _syncRepo.sincronizarLeituras();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Dados sincronizados com a nuvem!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erro na sincronização: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Conexão instável ou inexistente. Tente mais tarde.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    }
+    
+    setState(() => _isSyncing = false);
+  }
 
   Future<void> _mostrarDialogoNovoTalhao() async {
     TextEditingController textController = TextEditingController();
@@ -57,6 +99,18 @@ class _SelecaoTalhaoScreenState extends State<SelecaoTalhaoScreen> {
         title: const Text('AGdata - Áreas', style: TextStyle(color: Colors.white)),
         backgroundColor: const Color(0xFF2E7D32),
         centerTitle: true,
+        actions: [
+          _isSyncing 
+            ? const Padding(
+                padding: EdgeInsets.all(12.0),
+                child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
+              )
+            : IconButton(
+                icon: const Icon(Icons.cloud_upload, color: Colors.white),
+                onPressed: _handleManualSync,
+                tooltip: 'Sincronizar com Nuvem',
+              ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _mostrarDialogoNovoTalhao,
