@@ -1,19 +1,76 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; 
+import 'firebase_options.dart';
 import 'features/diagnostico/presentation/pages/selecao_talhao_screen.dart'; 
 import 'features/diagnostico/data/datasources/database_service.dart';
+import 'infra/repositories/sync_repository.dart';
+import 'infra/services/connectivity_service.dart';
 import 'core/theme/app_theme.dart'; 
+import 'core/di/injection_container.dart' as di;
+import 'core/di/injection_container.dart';
 
 void main() async {
+
   WidgetsFlutterBinding.ensureInitialized(); 
-  
+
   try {
-    await DatabaseService.initialize();
-    debugPrint('✅ Banco de dados Isar inicializado.');
+    await dotenv.load(fileName: ".env");
   } catch (e) {
-    debugPrint('❌ Erro ao inicializar Isar: $e');
+    debugPrint('Erro ao carregar arquivo .env: $e');
   }
 
-  runApp(const AGDataApp());
+  await SentryFlutter.init(
+    (options) {
+      options.dsn = dotenv.env['SENTRY_DSN']; 
+      options.tracesSampleRate = 1.0;
+      // ignore: experimental_member_use
+      options.profilesSampleRate = 1.0;
+    },
+    appRunner: () async {
+      try {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+        debugPrint('Firebase inicializado.');
+      } catch (e, stackTrace) {
+        debugPrint('Erro ao inicializar Firebase: $e');
+        await Sentry.captureException(e, stackTrace: stackTrace);
+      }
+
+      try {
+        await DatabaseService.initialize();
+        debugPrint('Banco de dados Isar inicializado.');
+      } catch (e, stackTrace) {
+        debugPrint('Erro ao inicializar Isar: $e');
+        await Sentry.captureException(e, stackTrace: stackTrace);
+      }
+
+      await di.init();
+
+      sl<ConnectivityService>().configurarOuvinteDeSincronizacao();
+
+      _dispararSincronizacaoAutomatica();
+
+      runApp(
+        SentryWidget(
+          child: const AGDataApp(),
+        ),
+      );
+    },
+  );
+}
+
+void _dispararSincronizacaoAutomatica() async {
+  final syncRepo = sl<SyncRepository>(); 
+  try {
+    await syncRepo.sincronizarLeituras();
+    debugPrint('[AUTO-SYNC] Sincronização inicial finalizada.');
+  } catch (e, stackTrace) {
+    debugPrint('[AUTO-SYNC] Falha na sincronização automática: $e');
+    await Sentry.captureException(e, stackTrace: stackTrace);
+  }
 }
 
 class AGDataApp extends StatelessWidget {

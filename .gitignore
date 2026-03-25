@@ -16,6 +16,7 @@
 # --- ARQUIVOS DE SISTEMA ---
 .DS_Store
 Thumbs.db
+.env
 
 # --- MODELOS DE IA ---
 *.keras
