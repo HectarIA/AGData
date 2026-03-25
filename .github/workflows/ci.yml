@@ -21,9 +21,11 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Instalar dependencias
+      - name: Preparar ambiente e Instalar dependencias
         run: |
           cd mobile
+          touch .env
+          echo "SENTRY_DSN=https://fake_dsn@sentry.io/1" > .env
           flutter pub get
 
       - name: Executar Linter
