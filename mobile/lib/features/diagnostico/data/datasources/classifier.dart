@@ -38,34 +38,38 @@ class Classifier {
 
     img.Image resizedImage = img.copyResize(originalImage, width: 224, height: 224);
     
-    // Preparação do Input
+    // 1️⃣ PREPARAÇÃO DO INPUT (Modificado para UINT8)
     var input = List.generate(1, (b) {
       return List.generate(224, (y) {
         return List.generate(224, (x) {
           var pixel = resizedImage.getPixel(x, y);
           return [
-            pixel.r.toDouble() / 255.0,
-            pixel.g.toDouble() / 255.0,
-            pixel.b.toDouble() / 255.0
+            pixel.r.toInt(), // Passando o valor inteiro bruto (0 a 255)
+            pixel.g.toInt(),
+            pixel.b.toInt()
           ];
         });
       });
     });
 
     var outputShape = _interpreter!.getOutputTensor(0).shape;
-    var outputBuffer = List.filled(outputShape[0] * outputShape[1], 0.0).reshape(outputShape);
+    
+    // 2️⃣ BUFFER DE SAÍDA (Modificado para Lista de Inteiros usando '0' em vez de '0.0')
+    var outputBuffer = List.filled(outputShape[0] * outputShape[1], 0).reshape(outputShape);
 
     try {
       debugPrint("⚙️ Executando inferência...");
       _interpreter!.run(input, outputBuffer);
-      debugPrint("✅ Inferência executada.");
+      debugPrint("✅ Inferência executada com sucesso!");
     } catch (e) {
       debugPrint("❌ ERRO NO INTERPRETER.RUN: $e");
       return {'label': 'Erro na execução da IA', 'confidence': 0.0};
     }
 
-    // Processamento da saída
-    List<double> probabilities = List<double>.from(outputBuffer[0]);
+    // 3️⃣ PROCESSAMENTO DA SAÍDA (Convertendo uint8 de volta para decimal/porcentagem)
+    List<int> rawOutput = List<int>.from(outputBuffer[0]);
+    List<double> probabilities = rawOutput.map((val) => val / 255.0).toList();
+    
     int highestIndex = 0;
     double maxConfidence = -1.0;
 
