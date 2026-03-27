@@ -20,5 +20,18 @@ class LeituraModel {
 
   String talhao = "";
 
-  bool sincronizado = false; 
+  @Index()
+  bool sincronizado = false;
+
+  Map<String, dynamic> toMap() {
+    return {
+      'resultadoIA': resultadoIA,
+      'confianca': confianca,
+      'caminhoImagem': caminhoImagem,
+      'dataHora': dataHora.toIso8601String(),
+      'latitude': latitude,
+      'longitude': longitude,
+      'talhao': talhao,
+    };
+  }
 }

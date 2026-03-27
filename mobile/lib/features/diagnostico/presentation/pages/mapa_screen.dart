@@ -52,7 +52,12 @@ class _MapaScreenState extends State<MapaScreen> {
                   const Text("Diagnóstico:", style: TextStyle(fontWeight: FontWeight.bold)),
                   Wrap(
                     spacing: 8,
-                    children: ["SAUDÁVEL", "FERRUGEM", "OÍDIO", "MANCHA ALVO", "INCONCLUSIVO"].map((tipo) {
+                    runSpacing: 8, // Adicionado para não quebrar a tela se tiver muitas opções
+                    children: [
+                      "saudavel", "Ferrugem", "oidio", "mancha_alvo", 
+                      "bacterial_blight", "cercospora", "deficiencia_potassio", 
+                      "mildio", "olho_sapo", "septoria", "Inconclusivo"
+                    ].map((tipo) {
                       final selecionado = tempDoenca == tipo;
                       return ChoiceChip(
                         label: Text(tipo),

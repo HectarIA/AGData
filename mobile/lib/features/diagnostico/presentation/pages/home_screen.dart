@@ -15,13 +15,27 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final HomeController _controller = HomeController();
 
-  Color _pegarCorResultado(String resultado) {
-    switch (resultado.toUpperCase()) {
-      case "SAUDÁVEL": return Colors.green;
-      case "FERRUGEM": return Colors.red;
-      case "OÍDIO": return Colors.orange[700]!;
-      case "INCONCLUSIVO": return Colors.yellow[800]!;
-      case "MANCHA ALVO": return Colors.brown[700]!;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _controller.solicitarPermissoesIniciais();
+    });
+  }
+
+Color _pegarCorResultado(String res) { 
+    switch (res.toLowerCase()) {
+      case "saudavel": return Colors.green;
+      case "ferrugem": return Colors.red;
+      case "oidio": return Colors.orange[700]!;
+      case "mancha_alvo": return Colors.brown[700]!;
+      case "bacterial_blight": return Colors.teal;
+      case "cercospora": return Colors.purple;
+      case "deficiencia_potassio": return Colors.yellow[800]!;
+      case "mildio": return Colors.blue;
+      case "olho_sapo": return Colors.indigo;
+      case "septoria": return Colors.cyan;
+      case "inconclusivo": return Colors.grey[400]!;
       default: return Colors.grey[700]!;
     }
   }

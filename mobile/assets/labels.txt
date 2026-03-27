@@ -1,5 +1,10 @@
 Ferrugem
+bacterial_blight
+cercospora
+deficiencia_potassio
 mancha_alvo
+mildio
 oidio
+olho_sapo
 saudavel
 septoria

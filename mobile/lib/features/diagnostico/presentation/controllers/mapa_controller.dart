@@ -71,12 +71,19 @@ class MapaController extends ChangeNotifier {
     if (markers.isNotEmpty) centroMapa = markers.first.point;
   }
 
-  Color _pegarCor(String res) {
-    switch (res.toUpperCase()) {
-      case "SAUDÁVEL": return Colors.green;
-      case "FERRUGEM": return Colors.red;
-      case "OÍDIO": return Colors.orange[700]!;
-      case "MANCHA ALVO": return Colors.brown[700]!;
+Color _pegarCor(String res) { 
+    switch (res.toLowerCase()) {
+      case "saudavel": return Colors.green;
+      case "ferrugem": return Colors.red;
+      case "oidio": return Colors.orange[700]!;
+      case "mancha_alvo": return Colors.brown[700]!;
+      case "bacterial_blight": return Colors.teal;
+      case "cercospora": return Colors.purple;
+      case "deficiencia_potassio": return Colors.yellow[800]!;
+      case "mildio": return Colors.blue;
+      case "olho_sapo": return Colors.indigo;
+      case "septoria": return Colors.cyan;
+      case "inconclusivo": return Colors.grey[400]!;
       default: return Colors.grey[700]!;
     }
   }

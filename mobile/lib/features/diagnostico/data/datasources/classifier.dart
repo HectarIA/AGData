@@ -11,9 +11,9 @@ class Classifier {
   Future<void> loadModel() async {
     try {
       final options = InterpreterOptions()..threads = 4;
-      _interpreter = await Interpreter.fromAsset('assets/models/modelo_soja_2.tflite', options: options);
+      _interpreter = await Interpreter.fromAsset('assets/models/modelo_soja_v11.tflite', options: options);
       
-      final labelString = await rootBundle.loadString('assets/labels_v2.txt');
+      final labelString = await rootBundle.loadString('assets/labels.txt');
       _labels = labelString.split('\n').where((s) => s.isNotEmpty).toList();
       
       debugPrint('✅ Cérebro da IA carregado! Input Shape: ${_interpreter!.getInputTensor(0).shape}');

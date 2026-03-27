@@ -24,13 +24,19 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
   DateTime? _dataFiltro;
   String _doencaFiltro = 'Todas';
   double _confiancaFiltro = 0.0;
-  final List<String> _opcoesDoenca = [
+final List<String> _opcoesDoenca = [
     'Todas',
-    'FERRUGEM',
-    'OÍDIO',
-    'SAUDÁVEL',
-    'MANCHA ALVO',
-    'INCONCLUSIVO'
+    'Ferrugem',
+    'bacterial_blight',
+    'cercospora',
+    'deficiencia_potassio',
+    'mancha_alvo',
+    'mildio',
+    'oidio',
+    'olho_sapo',
+    'saudavel',
+    'septoria',
+    'Inconclusivo'
   ];
 
   @override
