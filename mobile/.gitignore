@@ -50,3 +50,6 @@ app.*.map.json
 /inteligencia/modelo_soja_2.keras
 
 sentry.properties
+
+
+.env
