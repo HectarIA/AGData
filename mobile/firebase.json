@@ -1,1 +1,26 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"hectaria-agdata-026","appId":"1:70914324775:android:6e89c65dd3bc5020295102","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"hectaria-agdata-026","configurations":{"android":"1:70914324775:android:6e89c65dd3bc5020295102","ios":"1:70914324775:ios:ab43af92da5653b3295102","windows":"1:70914324775:web:c78e85eb61fe0afd295102"}}}}}}
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "hectaria-agdata-026",
+          "appId": "1:70914324775:android:6e89c65dd3bc5020295102",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "hectaria-agdata-026",
+          "configurations": {
+            "android": "1:70914324775:android:6e89c65dd3bc5020295102",
+            "ios": "1:70914324775:ios:ab43af92da5653b3295102",
+            "windows": "1:70914324775:web:c78e85eb61fe0afd295102"
+          }
+        }
+      }
+    }
+  }
+}

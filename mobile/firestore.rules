@@ -1,0 +1,18 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Regra para a nova estrutura de Subcoleções (Produção)
+    match /talhoes/{talhaoId}/diagnosticos/{documentId} {
+      allow create, read: if true;
+      allow update, delete: if false;
+    }
+
+    // Regra legada (Manter enquanto houver dados na pasta antiga)
+    match /diagnosticos/{documentId} {
+      allow create, read: if true;
+      allow update, delete: if false;
+    }
+  }
+}

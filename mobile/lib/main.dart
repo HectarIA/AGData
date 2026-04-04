@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; 
+import 'package:workmanager/workmanager.dart'; // Adicionado
 import 'firebase_options.dart';
 import 'features/diagnostico/presentation/pages/selecao_talhao_screen.dart'; 
 import 'features/diagnostico/data/datasources/database_service.dart';
@@ -11,8 +12,29 @@ import 'core/theme/app_theme.dart';
 import 'core/di/injection_container.dart' as di;
 import 'core/di/injection_container.dart';
 
-void main() async {
+@pragma('vm:entry-point')
+void callbackDispatcher() {
+  Workmanager().executeTask((taskName, inputData) async {
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      
+      await DatabaseService.initialize();
+      
+      await di.init();
 
+      final syncRepo = sl<SyncRepository>();
+      await syncRepo.sincronizarLeituras();
+      
+      return Future.value(true);
+    } catch (e) {
+      return Future.value(false);
+    }
+  });
+}
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized(); 
 
   try {
@@ -48,6 +70,26 @@ void main() async {
       }
 
       await di.init();
+
+      try {
+        await Workmanager().initialize(
+          callbackDispatcher,
+          isInDebugMode: true,
+        );
+        
+        await Workmanager().registerPeriodicTask(
+          "sync-task-id",
+          "syncTask",
+          frequency: const Duration(minutes: 15),
+          constraints: Constraints(
+            networkType: NetworkType.connected,
+            requiresBatteryNotLow: true,
+          ),
+        );
+        debugPrint('Workmanager inicializado.');
+      } catch (e) {
+        debugPrint('Erro ao inicializar Workmanager: $e');
+      }
 
       sl<ConnectivityService>().configurarOuvinteDeSincronizacao();
 
