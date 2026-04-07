@@ -25,19 +25,26 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
   final _nomeAdminController = TextEditingController();
   final _emailAdminController = TextEditingController();
   final _cpfAdminController = TextEditingController();
+  final _phoneAdminController = TextEditingController(); // 📱 Novo controller
 
   bool _carregando = false;
   final _cpfFormatter = MaskTextInputFormatter(mask: '###.###.###-##');
   final _cnpjFormatter = MaskTextInputFormatter(mask: '##.###.###/####-##');
+  final _phoneFormatter = MaskTextInputFormatter(mask: '(##) #####-####'); // 📱 Máscara de telefone
 
   String _gerarSenhaProvisoria() => (Random().nextInt(900000) + 100000).toString();
 
-  Future<void> _enviarWhatsapp(String nome, String email, String senha) async {
-    final mensagem = "Olá $nome! Seu acesso ao HectarIA está pronto.\n\n"
+  // 📱 Agora recebe o telefone para abrir a conversa direta
+  Future<void> _enviarWhatsapp(String nome, String email, String senha, String telefone) async {
+    final numeroLimpo = telefone.replaceAll(RegExp(r'[^0-9]'), '');
+    final mensagem = "Olá adiministrador $nome! Seu acesso ao HectarIA está pronto.\n\n"
         "📧 Login: $email\n"
         "🔑 Senha Provisória: $senha\n\n"
         "Obs: Por segurança, altere sua senha no primeiro acesso.";
-    final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(mensagem)}");
+    
+    // 📱 Link direto para o número cadastrado
+    final url = Uri.parse("https://wa.me/55$numeroLimpo?text=${Uri.encodeComponent(mensagem)}");
+    
     try {
       if (await canLaunchUrl(url)) {
         await launchUrl(url, mode: LaunchMode.externalApplication);
@@ -66,6 +73,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
         role: 'admin',
         companyId: empresaRef.id,
         cpf: _cpfAdminController.text,
+        phone: _phoneAdminController.text, // 📱 Enviando telefone
       );
 
       await empresaRef.set({
@@ -76,7 +84,12 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
       });
 
       if (mounted) {
-        _exibirDialogoSucesso(_nomeAdminController.text, _emailAdminController.text.trim(), senhaGerada);
+        _exibirDialogoSucesso(
+          _nomeAdminController.text, 
+          _emailAdminController.text.trim(), 
+          senhaGerada,
+          _phoneAdminController.text // 📱 Passando para o diálogo
+        );
         _limparCampos();
       }
     } catch (e) {
@@ -88,7 +101,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
     }
   }
 
-  void _exibirDialogoSucesso(String nome, String email, String senha) {
+  void _exibirDialogoSucesso(String nome, String email, String senha, String telefone) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -107,7 +120,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("FECHAR")),
           ElevatedButton.icon(
-            onPressed: () => _enviarWhatsapp(nome, email, senha),
+            onPressed: () => _enviarWhatsapp(nome, email, senha, telefone), // 📱 Envia com o número
             icon: const Icon(Icons.share),
             label: const Text("WHATSAPP"),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
@@ -124,6 +137,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
     _nomeAdminController.clear();
     _emailAdminController.clear();
     _cpfAdminController.clear();
+    _phoneAdminController.clear(); // 📱 Limpando telefone
   }
 
   @override
@@ -134,7 +148,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
         backgroundColor: const Color(0xFF1B5E20),
         foregroundColor: Colors.white,
       ),
-      drawer: const SuperAdminDrawer(), // DRAWER ADICIONADO AQUI
+      drawer: const SuperAdminDrawer(),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -172,6 +186,15 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
                     decoration: const InputDecoration(labelText: 'E-mail (Login)', border: OutlineInputBorder()),
                     keyboardType: TextInputType.emailAddress,
                     validator: (v) => (v == null || !v.contains('@')) ? 'E-mail inválido' : null,
+                  ),
+                  const SizedBox(height: 10),
+                  // 📱 NOVO CAMPO DE TELEFONE NO UI
+                  TextFormField(
+                    controller: _phoneAdminController,
+                    inputFormatters: [_phoneFormatter],
+                    decoration: const InputDecoration(labelText: 'Telefone / WhatsApp', border: OutlineInputBorder(), hintText: '(00) 00000-0000'),
+                    keyboardType: TextInputType.phone,
+                    validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
@@ -218,13 +241,11 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('CNPJ: ${company['cnpj'] ?? 'N/A'}'),
-                            
-                            // BUSCA DO ADMIN NA COLEÇÃO 'users'
                             FutureBuilder<QuerySnapshot>(
                               future: FirebaseFirestore.instance
                                   .collection('users')
                                   .where('companyId', isEqualTo: companyId)
-                                  .where('role', isEqualTo: 'admin') // Certifique-se que o texto é exatamente 'admin'
+                                  .where('role', isEqualTo: 'admin')
                                   .limit(1)
                                   .get(),
                               builder: (context, userSnap) {
@@ -234,7 +255,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
                                 if (userSnap.hasData && userSnap.data!.docs.isNotEmpty) {
                                   final adminData = userSnap.data!.docs.first.data() as Map<String, dynamic>;
                                   return Text(
-                                    'Resp: ${adminData['name']}',
+                                    'Resp: ${adminData['name']} ${adminData['phone'] != null ? "- ${adminData['phone']}" : ""}',
                                     style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey),
                                   );
                                 }
@@ -255,7 +276,8 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
     );
   }
 }
-//drawer
+
+// Drawer mantido como solicitado
 class SuperAdminDrawer extends StatelessWidget {
   const SuperAdminDrawer({super.key});
 
