@@ -23,6 +23,7 @@ class AuthRepository {
     }
   }
 
+  /// CADASTRO DE NOVO USUÁRIO (Com suporte a Telefone)
   Future<void> cadastrarNovoUsuario({
     required String nome,
     required String email,
@@ -30,16 +31,21 @@ class AuthRepository {
     required String role,
     required String companyId,
     String? cpf,
+    String? phone, // 📱 Novo parâmetro adicionado
   }) async {
+    // Criamos um nome único para a instância temporária do Firebase
     String tempAppName = 'tempApp-${DateTime.now().millisecondsSinceEpoch}';
 
     try {
+      // Inicializa app secundário para não deslogar o Admin atual
       FirebaseApp secondaryApp = await Firebase.initializeApp(
         name: tempAppName,
         options: Firebase.app().options,
       );
 
       FirebaseAuth secondaryAuth = FirebaseAuth.instanceFor(app: secondaryApp);
+      
+      // Cria o usuário no Firebase Auth
       UserCredential credential = await secondaryAuth.createUserWithEmailAndPassword(
         email: email,
         password: senha,
@@ -47,10 +53,12 @@ class AuthRepository {
 
       final String uid = credential.user!.uid;
 
+      // Salva os dados estendidos no Firestore
       await _firestore.collection('users').doc(uid).set({
         'uid': uid,
         'name': nome,
         'email': email,
+        'phone': phone ?? '', // 📱 Salvando o telefone no banco
         'cpf': cpf?.replaceAll(RegExp(r'[^0-9]'), '') ?? '',
         'role': role,
         'companyId': companyId,
@@ -58,6 +66,7 @@ class AuthRepository {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
+      // Limpa a instância temporária
       await secondaryApp.delete();
     } catch (e) {
       rethrow;
