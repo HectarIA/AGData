@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // IMPORTANTE
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; 
 import 'package:workmanager/workmanager.dart';
@@ -9,6 +10,7 @@ import 'firebase_options.dart';
 import 'features/auth/presentation/pages/login_page.dart'; 
 import 'features/auth/presentation/pages/super_admin_page.dart';
 import 'features/auth/presentation/pages/admin_page.dart';
+import 'features/diagnostico/presentation/pages/selecao_talhao_screen.dart'; // IMPORTANTE
 
 import 'features/diagnostico/data/datasources/database_service.dart';
 import 'infra/repositories/sync_repository.dart';
@@ -105,12 +107,35 @@ class AGDataApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'AGdata',
       theme: AppTheme.lightTheme,
-      home: const LoginPage(), 
+      
+      // O StreamBuilder monitora se há um usuário autenticado no Firebase.
+      // Se houver, ele pula o login e vai direto para a tela principal.
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          // Enquanto o Firebase está checando o status (carregamento inicial)
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+
+          // Se o usuário está logado
+          if (snapshot.hasData && snapshot.data != null) {
+            return const SelecaoTalhaoScreen();
+          }
+
+          // Se não houver usuário logado
+          return const LoginPage();
+        },
+      ),
+
       // Definição das rotas nomeadas
       routes: {
         '/login': (context) => const LoginPage(),
         '/super-admin': (context) => const SuperAdminPage(),
         '/admin': (context) => const AdminPage(),
+        '/selecao-talhao': (context) => const SelecaoTalhaoScreen(),
       },
     );
   }
