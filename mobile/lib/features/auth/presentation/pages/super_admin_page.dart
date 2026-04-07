@@ -1,6 +1,8 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/di/injection_container.dart';
 import '../controller/session_controller.dart';
 import '../../../auth/data/models/auth_model.dart';
@@ -17,19 +19,48 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
   final _formKey = GlobalKey<FormState>();
   final SessionController _session = sl<SessionController>();
   final AuthRepository _authRepo = sl<AuthRepository>();
-  
+
   final _nomeEmpresaController = TextEditingController();
   final _cnpjController = TextEditingController();
   final _nomeAdminController = TextEditingController();
-  final _emailAdminController = TextEditingController(); 
+  final _emailAdminController = TextEditingController();
   final _cpfAdminController = TextEditingController();
-  final _senhaAdminController = TextEditingController();
 
   bool _carregando = false;
   final _cpfFormatter = MaskTextInputFormatter(mask: '###.###.###-##');
   final _cnpjFormatter = MaskTextInputFormatter(mask: '##.###.###/####-##');
 
+  /// Gera uma senha aleatória de 6 dígitos
+  String _gerarSenhaProvisoria() {
+    return (Random().nextInt(900000) + 100000).toString();
+  }
+
+  /// Abre o WhatsApp com a mensagem pronta
+  Future<void> _enviarWhatsapp(String nome, String email, String senha) async {
+    final mensagem = "Olá $nome! Seu acesso ao HectarIA está pronto.\n\n"
+        "📧 Login: $email\n"
+        "🔑 Senha Provisória: $senha\n\n"
+        "Obs: Por segurança, o sistema solicitará que você crie uma nova senha no seu primeiro acesso.";
+
+    final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(mensagem)}");
+    
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        throw 'Não foi possível abrir o WhatsApp';
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro ao abrir WhatsApp. Verifique se o app está instalado.')),
+        );
+      }
+    }
+  }
+
   Future<void> _cadastrarTudo() async {
+    // 1. Verificação de permissão
     if (_session.usuario?.role != UserRole.superAdmin) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Acesso negado.'), backgroundColor: Colors.red),
@@ -40,21 +71,23 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _carregando = true);
 
+    final senhaGerada = _gerarSenhaProvisoria();
+
     try {
-      // 1. Gerar ID da Empresa
+      // 2. Gerar ID da Empresa
       DocumentReference empresaRef = FirebaseFirestore.instance.collection('companies').doc();
-      
-      // 2. Criar Admin via instância secundária (Evita deslogar o SuperAdmin)
+
+      // 3. Criar Admin via instância secundária (Evita deslogar o SuperAdmin)
       await _authRepo.cadastrarNovoUsuario(
         nome: _nomeAdminController.text,
         email: _emailAdminController.text.trim(),
-        senha: _senhaAdminController.text,
+        senha: senhaGerada,
         role: 'admin',
         companyId: empresaRef.id,
         cpf: _cpfAdminController.text,
       );
 
-      // 3. Registrar a Empresa no Firestore
+      // 4. Registrar a Empresa no Firestore
       await empresaRef.set({
         'id': empresaRef.id,
         'name': _nomeEmpresaController.text,
@@ -63,8 +96,10 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Empresa e Administrador cadastrados com sucesso!'), backgroundColor: Colors.green),
+        _exibirDialogoSucesso(
+          _nomeAdminController.text,
+          _emailAdminController.text.trim(),
+          senhaGerada,
         );
         _limparCampos();
       }
@@ -79,6 +114,38 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
     }
   }
 
+  void _exibirDialogoSucesso(String nome, String email, String senha) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text("Sucesso!", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Administrador criado com sucesso!"),
+            const SizedBox(height: 10),
+            Text("Senha gerada: ", style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(senha, style: const TextStyle(fontSize: 20, color: Colors.blueAccent, letterSpacing: 2)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("FECHAR"),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => _enviarWhatsapp(nome, email, senha),
+            icon: const Icon(Icons.share),
+            label: const Text("ENVIAR WHATSAPP"),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _limparCampos() {
     _formKey.currentState!.reset();
     _nomeEmpresaController.clear();
@@ -86,7 +153,6 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
     _nomeAdminController.clear();
     _emailAdminController.clear();
     _cpfAdminController.clear();
-    _senhaAdminController.clear();
   }
 
   @override
@@ -95,6 +161,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
       appBar: AppBar(
         title: const Text('HectarIA - Gestão Global'),
         backgroundColor: const Color(0xFF1B5E20),
+        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -151,13 +218,6 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
                     inputFormatters: [_cpfFormatter],
                     decoration: const InputDecoration(labelText: 'CPF', border: OutlineInputBorder()),
                     keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: _senhaAdminController,
-                    decoration: const InputDecoration(labelText: 'Senha Provisória', border: OutlineInputBorder()),
-                    obscureText: true,
-                    validator: (v) => v!.length < 6 ? 'Mínimo 6 caracteres' : null,
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
