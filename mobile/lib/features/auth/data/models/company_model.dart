@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class CompanyModel {
   final String id;
   final String name;
@@ -16,7 +18,16 @@ class CompanyModel {
       'id': id,
       'name': name,
       'cnpj': cnpj,
-      'createdAt': createdAt.toIso8601String(),
+      'createdAt': createdAt, // O Firebase aceita DateTime direto para salvar como Timestamp
     };
+  }
+
+  factory CompanyModel.fromMap(Map<String, dynamic> map) {
+    return CompanyModel(
+      id: map['id'] ?? '',
+      name: map['name'] ?? '',
+      cnpj: map['cnpj'] ?? '',
+      createdAt: (map['createdAt'] as Timestamp).toDate(), // Converte Timestamp para DateTime
+    );
   }
 }
