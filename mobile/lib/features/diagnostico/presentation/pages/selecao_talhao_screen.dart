@@ -6,7 +6,7 @@ import '../../../../infra/repositories/sync_repository.dart';
 import '../../../../infra/services/connectivity_service.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../auth/presentation/pages/super_admin_page.dart';
-import '../../../auth/presentation/pages/admin_page.dart'; // Import da página de Admin de Unidade
+import '../../../auth/presentation/pages/admin_page.dart';
 import '../../../auth/presentation/controller/session_controller.dart';
 import '../../../auth/data/models/auth_model.dart';
 
@@ -85,21 +85,83 @@ class _SelecaoTalhaoScreenState extends State<SelecaoTalhaoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Lógica de Permissões
     final user = _session.usuario;
     final bool isSuperAdmin = user?.role == UserRole.superAdmin;
     final bool isAdmin = user?.role == UserRole.admin;
     final bool temAcessoGestao = isSuperAdmin || isAdmin;
 
-    final String nomeUsuario = user?.name.split(' ').first ?? 'Usuário';
-
     return Scaffold(
+      // 1. ADIÇÃO DO DRAWER (MENU LATERAL)
+      drawer: Drawer(
+        child: Column(
+          children: [
+            UserAccountsDrawerHeader(
+              decoration: const BoxDecoration(color: Color(0xFF2E7D32)),
+              currentAccountPicture: CircleAvatar(
+                backgroundColor: Colors.white,
+                child: Text(
+                  user?.name[0].toUpperCase() ?? 'U',
+                  style: const TextStyle(fontSize: 40.0, color: Color(0xFF2E7D32)),
+                ),
+              ),
+              accountName: Text(user?.name ?? 'Usuário'),
+              accountEmail: Text(user?.email ?? ''),
+            ),
+            
+            // Item: Sincronização
+            ListTile(
+              leading: _isSyncing 
+                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.sync, color: Colors.green),
+              title: const Text("Sincronizar Dados"),
+              onTap: _isSyncing ? null : () {
+                Navigator.pop(context);
+                _handleManualSync();
+              },
+            ),
+
+            // Item: Gestão (Visível apenas para Admin/SuperAdmin)
+            if (temAcessoGestao) ...[
+              const Divider(),
+              const Padding(
+                padding: EdgeInsets.only(left: 16, top: 8, bottom: 4),
+                child: Text("Administração", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+              ),
+              ListTile(
+                leading: Icon(isSuperAdmin ? Icons.admin_panel_settings : Icons.people, color: Colors.blue),
+                title: Text(isSuperAdmin ? "Painel SuperAdmin" : "Gerenciar Funcionários"),
+                subtitle: Text(isSuperAdmin ? "Gestão global do sistema" : "Cadastro de operadores"),
+                onTap: () {
+                  Navigator.pop(context); // Fecha o drawer
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => isSuperAdmin ? const SuperAdminPage() : const AdminPage(),
+                    ),
+                  );
+                },
+              ),
+            ],
+
+            const Spacer(), // Empurra o logout para o fim
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text("Sair da Conta", style: TextStyle(color: Colors.red)),
+              onTap: _handleLogout,
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _mostrarDialogoNovoTalhao,
         backgroundColor: Colors.green[800],
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text('Novo Talhão', style: TextStyle(color: Colors.white)),
       ),
+      
       body: ListenableBuilder(
         listenable: _controller,
         builder: (context, _) {
@@ -110,7 +172,7 @@ class _SelecaoTalhaoScreenState extends State<SelecaoTalhaoScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // HEADER VERDE COM NAVEGAÇÃO POR ROLE
+                    // HEADER VERDE SIMPLIFICADO (Agora com botão do Drawer)
                     SafeArea(
                       bottom: false,
                       child: Container(
@@ -126,30 +188,13 @@ class _SelecaoTalhaoScreenState extends State<SelecaoTalhaoScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            // Botão de Gestão (Esquerda)
-                            temAcessoGestao
-                                ? IconButton(
-                                    icon: Icon(
-                                      isSuperAdmin
-                                          ? Icons.admin_panel_settings
-                                          : Icons.business_center,
-                                      color: Colors.white,
-                                    ),
-                                    tooltip: isSuperAdmin
-                                        ? 'Painel SuperAdmin'
-                                        : 'Gestão da Unidade',
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => isSuperAdmin
-                                              ? const SuperAdminPage()
-                                              : const AdminPage(),
-                                        ),
-                                      );
-                                    },
-                                  )
-                                : const SizedBox(width: 48),
+                            // Botão para abrir o Drawer
+                            Builder(
+                              builder: (context) => IconButton(
+                                icon: const Icon(Icons.menu, color: Colors.white),
+                                onPressed: () => Scaffold.of(context).openDrawer(),
+                              ),
+                            ),
 
                             const Text(
                               'HectarIA',
@@ -160,52 +205,24 @@ class _SelecaoTalhaoScreenState extends State<SelecaoTalhaoScreen> {
                               ),
                             ),
 
-                            // Botões de Sync e Logout (Direita)
-                            Row(
-                              children: [
-                                _isSyncing
-                                    ? const Padding(
-                                        padding: EdgeInsets.all(12),
-                                        child: SizedBox(
-                                            width: 24,
-                                            height: 24,
-                                            child: CircularProgressIndicator(
-                                                color: Colors.white,
-                                                strokeWidth: 2)))
-                                    : IconButton(
-                                        icon: const Icon(Icons.cloud_upload,
-                                            color: Colors.white),
-                                        onPressed: _handleManualSync,
-                                        tooltip: 'Sincronizar',
-                                      ),
-                                IconButton(
-                                  icon: const Icon(Icons.logout,
-                                      color: Colors.white),
-                                  onPressed: _handleLogout,
-                                  tooltip: 'Sair',
-                                ),
-                              ],
-                            ),
+                            // Espaçador para equilibrar o título (ou ícone de ajuda/notificação)
+                            const SizedBox(width: 48),
                           ],
                         ),
                       ),
                     ),
 
-                    // CONTEÚDO DA TELA
+                    // Bem-vindo e Restante da Tela...
                     Padding(
                       padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-                      child: RichText(
-                        text: TextSpan(
-                          style: const TextStyle(
-                              fontSize: 20, color: Color(0xFF2E7D32)),
+                      child: Text.rich(
+                        TextSpan(
+                          style: const TextStyle(fontSize: 20, color: Color(0xFF2E7D32)),
                           children: [
-                            const TextSpan(
-                                text: 'Bem vindo, ',
-                                style: TextStyle(fontWeight: FontWeight.w400)),
+                            const TextSpan(text: 'Bem vindo, ', style: TextStyle(fontWeight: FontWeight.w400)),
                             TextSpan(
-                                text: '$nomeUsuario!',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold)),
+                                text: '${user?.name.split(' ').first ?? 'Usuário'}!',
+                                style: const TextStyle(fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),
@@ -235,11 +252,12 @@ class _SelecaoTalhaoScreenState extends State<SelecaoTalhaoScreen> {
                             ),
                           ),
                           const SizedBox(height: 16),
+                          
+                          // LISTA DE TALHÕES
                           if (_controller.talhoes.isEmpty)
                             const Padding(
                               padding: EdgeInsets.symmetric(vertical: 40),
-                              child: Center(
-                                  child: Text('Nenhum talhão cadastrado.')),
+                              child: Center(child: Text('Nenhum talhão cadastrado.')),
                             )
                           else
                             ListView.builder(
@@ -248,42 +266,33 @@ class _SelecaoTalhaoScreenState extends State<SelecaoTalhaoScreen> {
                               itemCount: _controller.talhoes.length,
                               itemBuilder: (context, index) {
                                 final talhao = _controller.talhoes[index].nome;
-                                final isSelected =
-                                    _controller.talhaoSelecionado == talhao;
+                                final isSelected = _controller.talhaoSelecionado == talhao;
                                 return Card(
-                                  color: isSelected
-                                      ? Colors.green[50]
-                                      : Colors.white,
+                                  color: isSelected ? Colors.green[50] : Colors.white,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                     side: BorderSide(
-                                        color: isSelected
-                                            ? const Color(0xFF2E7D32)
-                                            : Colors.transparent,
+                                        color: isSelected ? const Color(0xFF2E7D32) : Colors.transparent,
                                         width: 2),
                                   ),
                                   child: ListTile(
                                     leading: Icon(Icons.layers_outlined,
-                                        color: isSelected
-                                            ? const Color(0xFF2E7D32)
-                                            : Colors.grey),
+                                        color: isSelected ? const Color(0xFF2E7D32) : Colors.grey),
                                     title: Text(talhao,
                                         style: TextStyle(
-                                            fontWeight: isSelected
-                                                ? FontWeight.bold
-                                                : FontWeight.normal)),
+                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
                                     trailing: isSelected
-                                        ? const Icon(Icons.check_circle,
-                                            color: Color(0xFF2E7D32))
-                                        : const Icon(Icons.arrow_forward_ios,
-                                            size: 14),
-                                    onTap: () =>
-                                        _controller.selecionarTalhao(talhao),
+                                        ? const Icon(Icons.check_circle, color: Color(0xFF2E7D32))
+                                        : const Icon(Icons.arrow_forward_ios, size: 14),
+                                    onTap: () => _controller.selecionarTalhao(talhao),
                                   ),
                                 );
                               },
                             ),
+                          
                           const SizedBox(height: 32),
+                          
+                          // BOTÃO INICIAR
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
@@ -293,22 +302,17 @@ class _SelecaoTalhaoScreenState extends State<SelecaoTalhaoScreen> {
                                         context,
                                         MaterialPageRoute(
                                             builder: (context) => HomeScreen(
-                                                talhaoAtual: _controller
-                                                    .talhaoSelecionado!)),
+                                                talhaoAtual: _controller.talhaoSelecionado!)),
                                       ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF2E7D32),
                                 foregroundColor: Colors.white,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 18),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12)),
+                                padding: const EdgeInsets.symmetric(vertical: 18),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                 elevation: 4,
                               ),
                               child: const Text('INICIAR MONITORAMENTO',
-                                  style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold)),
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                             ),
                           ),
                           const SizedBox(height: 100),
