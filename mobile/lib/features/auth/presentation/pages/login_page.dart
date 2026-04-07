@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../controller/session_controller.dart';
 import '../../../../features/diagnostico/presentation/pages/selecao_talhao_screen.dart';
+import 'super_admin_page.dart'; // Importe a página do Super Admin
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -13,17 +13,13 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _cpfController = TextEditingController();
+  // Alterado de CPF para E-mail
+  final _emailController = TextEditingController();
   final _senhaController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   
   bool _carregando = false;
   bool _senhaVisivel = false; 
-
-  final _cpfMask = MaskTextInputFormatter(
-    mask: '###.###.###-##',
-    filter: {"#": RegExp(r'[0-9]')},
-  );
 
   Future<void> _fazerLogin() async {
     if (!_formKey.currentState!.validate()) return;
@@ -34,8 +30,9 @@ class _LoginPageState extends State<LoginPage> {
       final authRepo = sl<AuthRepository>();
       final session = sl<SessionController>();
 
-      final userCredential = await authRepo.loginComCpf(
-        _cpfController.text,
+      // Agora utiliza loginComEmail
+      final userCredential = await authRepo.loginComEmail(
+        _emailController.text.trim(),
         _senhaController.text,
       );
 
@@ -45,10 +42,19 @@ class _LoginPageState extends State<LoginPage> {
         session.setUsuario(usuario);
 
         if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const SelecaoTalhaoScreen()),
-          );
+          // Lógica de Redirecionamento baseada no Role
+          if (usuario.role == 'superAdmin') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const SuperAdminPage()),
+            );
+          } else {
+            // Admin e User comum vão para a seleção de talhão/campo
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const SelecaoTalhaoScreen()),
+            );
+          }
         }
       } else {
         throw Exception("Perfil de usuário não encontrado.");
@@ -64,6 +70,31 @@ class _LoginPageState extends State<LoginPage> {
       }
     } finally {
       if (mounted) setState(() => _carregando = false);
+    }
+  }
+
+  // Função para recuperar senha
+  Future<void> _resetarSenha() async {
+    if (_emailController.text.isEmpty || !_emailController.text.contains('@')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Digite um e-mail válido para recuperar a senha.")),
+      );
+      return;
+    }
+    
+    try {
+      await sl<AuthRepository>().recuperarSenha(_emailController.text.trim());
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Link de recuperação enviado para o e-mail.")),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Erro: ${e.toString()}")),
+        );
+      }
     }
   }
 
@@ -103,17 +134,17 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 48),
 
+                // Campo alterado para E-mail
                 TextFormField(
-                  controller: _cpfController,
-                  inputFormatters: [_cpfMask],
-                  keyboardType: TextInputType.number,
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
-                    labelText: "CPF",
-                    hintText: "000.000.000-00",
+                    labelText: "E-mail",
+                    hintText: "exemplo@email.com",
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    prefixIcon: const Icon(Icons.person_outline),
+                    prefixIcon: const Icon(Icons.email_outlined),
                   ),
-                  validator: (v) => v!.length < 14 ? "CPF incompleto" : null,
+                  validator: (v) => (v == null || !v.contains('@')) ? "E-mail inválido" : null,
                 ),
                 const SizedBox(height: 20),
 
@@ -153,7 +184,11 @@ class _LoginPageState extends State<LoginPage> {
                       elevation: 2,
                     ),
                     child: _carregando 
-                      ? const CircularProgressIndicator(color: Colors.white) 
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
                       : const Text(
                           "ENTRAR NO SISTEMA", 
                           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -163,8 +198,7 @@ class _LoginPageState extends State<LoginPage> {
                 
                 const SizedBox(height: 24),
                 TextButton(
-                  onPressed: () {
-                  },
+                  onPressed: _resetarSenha,
                   child: const Text(
                     "Esqueceu sua senha?",
                     style: TextStyle(color: Color(0xFF2E7D32)),
