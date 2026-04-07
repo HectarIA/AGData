@@ -2,7 +2,8 @@ enum UserRole { superAdmin, admin, operador }
 
 class UserModel {
   final String uid;
-  final String? cpf; 
+  final String? cpf;
+  final String? phone; // 📱 Campo adicionado
   final String email;
   final String companyId;
   final String name;
@@ -12,6 +13,7 @@ class UserModel {
   UserModel({
     required this.uid,
     this.cpf,
+    this.phone,
     required this.email,
     required this.companyId,
     required this.name,
@@ -19,10 +21,11 @@ class UserModel {
     this.needsPasswordChange = false,
   });
 
-  // --- ADICIONE ESTE MÉTODO ABAIXO ---
+  // Método para criar uma cópia alterando apenas campos específicos
   UserModel copyWith({
     String? uid,
     String? cpf,
+    String? phone,
     String? email,
     String? companyId,
     String? name,
@@ -32,6 +35,7 @@ class UserModel {
     return UserModel(
       uid: uid ?? this.uid,
       cpf: cpf ?? this.cpf,
+      phone: phone ?? this.phone,
       email: email ?? this.email,
       companyId: companyId ?? this.companyId,
       name: name ?? this.name,
@@ -39,12 +43,13 @@ class UserModel {
       needsPasswordChange: needsPasswordChange ?? this.needsPasswordChange,
     );
   }
-  // ----------------------------------
 
+  // Converte o objeto para um Map (para salvar no Firestore)
   Map<String, dynamic> toMap() {
     return {
       'uid': uid,
       'cpf': cpf,
+      'phone': phone,
       'email': email,
       'companyId': companyId,
       'name': name,
@@ -53,10 +58,12 @@ class UserModel {
     };
   }
 
+  // Cria um objeto a partir de um Map (vindo do Firestore)
   factory UserModel.fromMap(Map<String, dynamic> map) {
     return UserModel(
       uid: map['uid'] ?? '',
       cpf: map['cpf'],
+      phone: map['phone'],
       email: map['email'] ?? '',
       companyId: map['companyId'] ?? '',
       name: map['name'] ?? '',
