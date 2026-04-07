@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart'; // Import necessário
 import '../../../../core/di/injection_container.dart';
 import '../../data/models/auth_model.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../controller/session_controller.dart';
-import '../widgets/add_user_dialog.dart'; // Vamos criar este widget a seguir
+import '../widgets/add_user_dialog.dart';
 
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
@@ -17,10 +18,43 @@ class _AdminPageState extends State<AdminPage> {
   final _session = sl<SessionController>();
   final _firestore = FirebaseFirestore.instance;
 
-  // Função para deslogar
   void _logout() async {
     await sl<AuthRepository>().logout();
     if (mounted) Navigator.pushReplacementNamed(context, '/login');
+  }
+
+  // FUNÇÃO PARA DISPARAR O WHATSAPP
+  Future<void> _enviarAcessoWhatsApp(UserModel user) async {
+    if (user.phone == null || user.phone!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Este usuário não possui telefone cadastrado.")),
+      );
+      return;
+    }
+
+    // Limpa o número para deixar apenas dígitos
+    final numeroLimpo = user.phone!.replaceAll(RegExp(r'[^0-9]'), '');
+    
+    final mensagem = Uri.encodeComponent(
+      "Olá ${user.name}! 🌱\n\n"
+      "Seu acesso ao app **HectarIA** está pronto.\n"
+      "📧 Login: ${user.email}\n"
+      "🔑 A senha é a que combinamos no cadastro.\n\n"
+      "Dúvidas, estou à disposição!"
+    );
+
+    final url = "https://wa.me/$numeroLimpo?text=$mensagem";
+    final uri = Uri.parse(url);
+
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Não foi possível abrir o WhatsApp.")),
+        );
+      }
+    }
   }
 
   @override
@@ -32,15 +66,11 @@ class _AdminPageState extends State<AdminPage> {
         title: const Text("Gestão de Operadores"),
         backgroundColor: const Color(0xFF2E7D32),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
-          ),
+          IconButton(icon: const Icon(Icons.logout), onPressed: _logout),
         ],
       ),
       body: Column(
         children: [
-          // Header com informações da Unidade
           Container(
             padding: const EdgeInsets.all(16),
             color: Colors.green.shade50,
@@ -55,10 +85,8 @@ class _AdminPageState extends State<AdminPage> {
               ],
             ),
           ),
-          
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              // FILTRO CRÍTICO: Só busca usuários da MESMA companhia
               stream: _firestore
                   .collection('users')
                   .where('companyId', isEqualTo: companyId)
@@ -70,10 +98,7 @@ class _AdminPageState extends State<AdminPage> {
                 }
 
                 final docs = snapshot.data!.docs;
-
-                if (docs.isEmpty) {
-                  return const Center(child: Text("Nenhum operador cadastrado."));
-                }
+                if (docs.isEmpty) return const Center(child: Text("Nenhum operador cadastrado."));
 
                 return ListView.separated(
                   padding: const EdgeInsets.all(16),
@@ -81,8 +106,6 @@ class _AdminPageState extends State<AdminPage> {
                   separatorBuilder: (_, __) => const Divider(),
                   itemBuilder: (context, index) {
                     final user = UserModel.fromMap(docs[index].data() as Map<String, dynamic>);
-                    
-                    // Não deixa o admin excluir a si mesmo na lista
                     final isMe = user.uid == _session.usuario?.uid;
 
                     return ListTile(
@@ -94,13 +117,25 @@ class _AdminPageState extends State<AdminPage> {
                         ),
                       ),
                       title: Text(user.name),
-                      subtitle: Text("${user.email} • ${user.role.name}"),
-                      trailing: isMe 
-                        ? const Chip(label: Text("Você"))
-                        : IconButton(
-                            icon: const Icon(Icons.delete_outline, color: Colors.red),
-                            onPressed: () => _confirmarExclusao(user),
-                          ),
+                      subtitle: Text("${user.role.name} • ${user.phone ?? 'Sem tel.'}"),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // BOTÃO DO WHATSAPP
+                          if (!isMe && user.phone != null && user.phone!.isNotEmpty)
+                            IconButton(
+                              icon: const Icon(Icons.chat, color: Colors.green),
+                              onPressed: () => _enviarAcessoWhatsApp(user),
+                            ),
+                          
+                          isMe 
+                            ? const Chip(label: Text("Você"))
+                            : IconButton(
+                                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                onPressed: () => _confirmarExclusao(user),
+                              ),
+                        ],
+                      ),
                     );
                   },
                 );
