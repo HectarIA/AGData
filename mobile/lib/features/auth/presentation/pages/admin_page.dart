@@ -1,3 +1,4 @@
+import 'dart:math'; // Importado para gerar a senha aleatória
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart'; 
@@ -21,12 +22,16 @@ class _AdminPageState extends State<AdminPage> {
   void _logout() async {
     await sl<AuthRepository>().logout();
     if (mounted) {
-      // Limpa a pilha de navegação e volta para a raiz (login)
       Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
     }
   }
 
-  // FUNÇÃO PARA DISPARAR O WHATSAPP (Atualizada para evitar erros de componente)
+  // FUNÇÃO PARA GERAR SENHA ALEATÓRIA DE 6 DÍGITOS
+  String _gerarSenhaAleatoria() {
+    return (Random().nextInt(900000) + 100000).toString();
+  }
+
+  // FUNÇÃO PARA DISPARAR O WHATSAPP COM LINK DIRETO E MENSAGEM DINÂMICA
   Future<void> _enviarAcessoWhatsApp(UserModel user) async {
     if (user.phone == null || user.phone!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -38,31 +43,36 @@ class _AdminPageState extends State<AdminPage> {
     // Limpa o número para deixar apenas dígitos
     final numeroLimpo = user.phone!.replaceAll(RegExp(r'[^0-9]'), '');
     
-    // Texto formatado para o operador
+    // Geração da senha para a mensagem
+    final senhaGerada = _gerarSenhaAleatoria();
+    
+    // Texto formatado conforme solicitado
     final mensagem = "Olá ${user.name}! 🌱\n\n"
-        "Seu acesso ao app *HectarIA* está pronto.\n"
-        "📧 Login: ${user.email}\n"
-        "🔑 A senha padrão é: 123456\n\n"
+        "Seu acesso ao app *HectarIA* está pronto.\n\n"
+        "📧 *Login:* ${user.email}\n"
+        "🔑 *Senha Provisória:* $senhaGerada\n\n"
+        "⚠️ *Atenção:* Por segurança, o aplicativo solicitará que você atualize sua senha no primeiro acesso.\n\n"
         "Dúvidas, estou à disposição!";
 
-    final url = "https://wa.me/$numeroLimpo?text=${Uri.encodeComponent(mensagem)}";
+    // Link direto wa.me/numero (55 adicionado para números brasileiros)
+    final url = "https://wa.me/55$numeroLimpo?text=${Uri.encodeComponent(mensagem)}";
     final uri = Uri.parse(url);
 
     try {
       if (await canLaunchUrl(uri)) {
         await launchUrl(
           uri, 
-          mode: LaunchMode.externalApplication, // Força abertura do App do WhatsApp
+          mode: LaunchMode.externalApplication,
         );
       } else {
         if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Não foi possível abrir o WhatsApp. Verifique se o app está instalado."),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Não foi possível abrir o WhatsApp. Verifique se o app está instalado."),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -92,7 +102,6 @@ class _AdminPageState extends State<AdminPage> {
       ),
       body: Column(
         children: [
-          // Info da Unidade
           Container(
             padding: const EdgeInsets.all(16),
             color: Colors.green.shade50,
@@ -162,7 +171,6 @@ class _AdminPageState extends State<AdminPage> {
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Botão do WhatsApp (Não aparece para mim mesmo)
                           if (!isMe)
                             IconButton(
                               icon: const Icon(Icons.chat, color: Colors.green),
@@ -203,7 +211,7 @@ class _AdminPageState extends State<AdminPage> {
   void _abrirDialogoCadastro() {
     showDialog(
       context: context,
-      barrierDismissible: false, // Força usar o botão cancelar
+      barrierDismissible: false,
       builder: (_) => const AddUserDialog(),
     );
   }
