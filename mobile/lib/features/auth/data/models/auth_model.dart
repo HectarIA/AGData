@@ -7,7 +7,7 @@ class UserModel {
   final String companyId;
   final String name;
   final UserRole role;
-  final bool needsPasswordChange; // Flag para primeiro acesso
+  final bool needsPasswordChange;
 
   UserModel({
     required this.uid,
@@ -18,6 +18,28 @@ class UserModel {
     required this.role,
     this.needsPasswordChange = false,
   });
+
+  // --- ADICIONE ESTE MÉTODO ABAIXO ---
+  UserModel copyWith({
+    String? uid,
+    String? cpf,
+    String? email,
+    String? companyId,
+    String? name,
+    UserRole? role,
+    bool? needsPasswordChange,
+  }) {
+    return UserModel(
+      uid: uid ?? this.uid,
+      cpf: cpf ?? this.cpf,
+      email: email ?? this.email,
+      companyId: companyId ?? this.companyId,
+      name: name ?? this.name,
+      role: role ?? this.role,
+      needsPasswordChange: needsPasswordChange ?? this.needsPasswordChange,
+    );
+  }
+  // ----------------------------------
 
   Map<String, dynamic> toMap() {
     return {

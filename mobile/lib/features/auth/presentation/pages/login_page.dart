@@ -3,7 +3,9 @@ import '../../../../core/di/injection_container.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../controller/session_controller.dart';
 import '../../../../features/diagnostico/presentation/pages/selecao_talhao_screen.dart';
-import 'super_admin_page.dart'; // Importe a página do Super Admin
+import 'super_admin_page.dart';
+import 'change_password_page.dart'; // Certifique-se de criar este arquivo
+import '../../data/models/auth_model.dart'; // Ajuste o caminho se necessário
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -13,7 +15,6 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  // Alterado de CPF para E-mail
   final _emailController = TextEditingController();
   final _senhaController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
@@ -30,26 +31,36 @@ class _LoginPageState extends State<LoginPage> {
       final authRepo = sl<AuthRepository>();
       final session = sl<SessionController>();
 
-      // Agora utiliza loginComEmail
+      // Realiza o login no Firebase Auth
       final userCredential = await authRepo.loginComEmail(
         _emailController.text.trim(),
         _senhaController.text,
       );
 
+      // Busca os dados complementares no Firestore
       final usuario = await authRepo.getPerfilUsuario(userCredential.user!.uid);
 
       if (usuario != null) {
         session.setUsuario(usuario);
 
         if (mounted) {
-          // Lógica de Redirecionamento baseada no Role
-          if (usuario.role == 'superAdmin') {
+          // 1. Verificação de Troca de Senha Obrigatória (Primeiro Acesso)
+          if (usuario.needsPasswordChange) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const ChangePasswordPage()),
+            );
+            return;
+          }
+
+          // 2. Redirecionamento baseado no nível de acesso
+          if (usuario.role == UserRole.superAdmin) {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => const SuperAdminPage()),
             );
           } else {
-            // Admin e User comum vão para a seleção de talhão/campo
+            // Admin e Operador seguem para o fluxo principal
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => const SelecaoTalhaoScreen()),
@@ -57,7 +68,7 @@ class _LoginPageState extends State<LoginPage> {
           }
         }
       } else {
-        throw Exception("Perfil de usuário não encontrado.");
+        throw Exception("Perfil de usuário não encontrado no banco de dados.");
       }
     } catch (e) {
       if (mounted) {
@@ -73,7 +84,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // Função para recuperar senha
   Future<void> _resetarSenha() async {
     if (_emailController.text.isEmpty || !_emailController.text.contains('@')) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -134,7 +144,6 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 48),
 
-                // Campo alterado para E-mail
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
@@ -201,7 +210,7 @@ class _LoginPageState extends State<LoginPage> {
                   onPressed: _resetarSenha,
                   child: const Text(
                     "Esqueceu sua senha?",
-                    style: TextStyle(color: Color(0xFF2E7D32)),
+                    style: TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
