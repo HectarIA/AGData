@@ -55,7 +55,14 @@ class _AdminPageState extends State<AdminPage> {
           mode: LaunchMode.externalApplication, // Força abertura do App do WhatsApp
         );
       } else {
-        throw "Não foi possível abrir o link";
+        if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Não foi possível abrir o WhatsApp. Verifique se o app está instalado."),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
       }
     } catch (e) {
       if (mounted) {
