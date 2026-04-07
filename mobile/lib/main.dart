@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // IMPORTANTE
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; 
 import 'package:workmanager/workmanager.dart';
 import 'firebase_options.dart';
 
-// Importações de páginas para as rotas
+// Importações de páginas
 import 'features/auth/presentation/pages/login_page.dart'; 
 import 'features/auth/presentation/pages/super_admin_page.dart';
 import 'features/auth/presentation/pages/admin_page.dart';
-import 'features/diagnostico/presentation/pages/selecao_talhao_screen.dart'; // IMPORTANTE
+import 'features/diagnostico/presentation/pages/selecao_talhao_screen.dart';
 
+import 'features/auth/data/models/auth_model.dart'; // Importe seu UserRole aqui
+import 'features/auth/presentation/controller/session_controller.dart';
 import 'features/diagnostico/data/datasources/database_service.dart';
 import 'infra/repositories/sync_repository.dart';
 import 'infra/services/connectivity_service.dart';
@@ -98,6 +100,64 @@ void _dispararSincronizacaoAutomatica() async {
   }
 }
 
+// --- O WRAPPER DE AUTENTICAÇÃO ---
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        // 1. Estado de carregamento
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+
+        // 2. Se o usuário NÃO está logado ou foi excluído/deslogado externamente
+        if (!snapshot.hasData || snapshot.data == null) {
+          return const LoginPage();
+        }
+
+        // 3. Se está logado, garantimos que a sessão (dados do Firestore) existe
+        return FutureBuilder(
+          future: _garantirDadosDaSessao(),
+          builder: (context, sessionSnapshot) {
+            if (sessionSnapshot.connectionState == ConnectionState.waiting) {
+              return const Scaffold(body: Center(child: CircularProgressIndicator()));
+            }
+
+            final session = sl<SessionController>();
+            
+            // Redirecionamento baseado na Role carregada na sessão
+            if (session.usuario?.role == UserRole.superAdmin) {
+              return const SuperAdminPage();
+            } else {
+              return const SelecaoTalhaoScreen();
+            }
+          },
+        );
+      },
+    );
+  }
+
+  // Método para carregar os dados do Firestore para o SessionController
+  // Caso o app tenha sido fechado e aberto agora.
+  Future<void> _garantirDadosDaSessao() async {
+    final session = sl<SessionController>();
+    if (session.usuario == null) {
+      // Aqui você chama o método do seu repository que busca no Firestore
+      // Exemplo: await sl<AuthRepository>().recuperarUsuarioLogado();
+      try {
+        // Implemente a lógica de busca por UID se ainda não tiver
+        await di.sl<SyncRepository>().sincronizarLeituras(); // Apenas exemplo, use seu AuthRepo
+      } catch (e) {
+        debugPrint("Erro ao recuperar sessão: $e");
+      }
+    }
+  }
+}
+
 class AGDataApp extends StatelessWidget {
   const AGDataApp({super.key});
 
@@ -108,29 +168,9 @@ class AGDataApp extends StatelessWidget {
       title: 'AGdata',
       theme: AppTheme.lightTheme,
       
-      // O StreamBuilder monitora se há um usuário autenticado no Firebase.
-      // Se houver, ele pula o login e vai direto para a tela principal.
-      home: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(),
-        builder: (context, snapshot) {
-          // Enquanto o Firebase está checando o status (carregamento inicial)
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
-          }
+      // O AuthWrapper agora controla a entrada de todas as rotas iniciais
+      home: const AuthWrapper(), 
 
-          // Se o usuário está logado
-          if (snapshot.hasData && snapshot.data != null) {
-            return const SelecaoTalhaoScreen();
-          }
-
-          // Se não houver usuário logado
-          return const LoginPage();
-        },
-      ),
-
-      // Definição das rotas nomeadas
       routes: {
         '/login': (context) => const LoginPage(),
         '/super-admin': (context) => const SuperAdminPage(),
