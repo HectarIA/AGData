@@ -37,7 +37,14 @@ class DatabaseService {
     });
   }
 
-  // Busca todos os talhões cadastrados, ordenados por nome
+  Future<List<TalhaoModel>> buscarTalhoesPorEmpresa(String companyId) async {
+    return await isar.talhaoModels
+        .filter()
+        .companyIdEqualTo(companyId) // Filtro do Isar
+        .sortByNome()
+        .findAll();
+  }
+
   Future<List<TalhaoModel>> buscarTodosTalhoes() async {
     return await isar.talhaoModels.where().sortByNome().findAll();
   }

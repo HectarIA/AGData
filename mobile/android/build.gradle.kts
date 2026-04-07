@@ -1,3 +1,16 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        // Esta linha é essencial para o Workmanager e outros plugins Kotlin
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.10")
+        classpath("com.android.tools.build:gradle:8.2.1")
+        classpath("com.google.gms:google-services:4.4.0")
+    }
+}
+
 allprojects {
     repositories {
         google()
@@ -13,12 +26,10 @@ subprojects {
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
 
-// 🚀 Correção Global: Força SDK 34 e resolve erro do lStar/Isar
 subprojects {
     afterEvaluate {
         if (project.hasProperty("android")) {
             project.extensions.configure<com.android.build.gradle.BaseExtension>("android") {
-                // Resolve o erro do lStar forçando a versão de compilação em todas as libs
                 compileSdkVersion(36) 
                 
                 if (namespace == null) {

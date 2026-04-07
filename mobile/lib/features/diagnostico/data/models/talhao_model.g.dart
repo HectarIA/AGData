@@ -17,13 +17,18 @@ const TalhaoModelSchema = CollectionSchema(
   name: r'TalhaoModel',
   id: 7974294011968836827,
   properties: {
-    r'dataCriacao': PropertySchema(
+    r'companyId': PropertySchema(
       id: 0,
+      name: r'companyId',
+      type: IsarType.string,
+    ),
+    r'dataCriacao': PropertySchema(
+      id: 1,
       name: r'dataCriacao',
       type: IsarType.dateTime,
     ),
     r'nome': PropertySchema(
-      id: 1,
+      id: 2,
       name: r'nome',
       type: IsarType.string,
     )
@@ -33,7 +38,21 @@ const TalhaoModelSchema = CollectionSchema(
   deserialize: _talhaoModelDeserialize,
   deserializeProp: _talhaoModelDeserializeProp,
   idName: r'id',
-  indexes: {},
+  indexes: {
+    r'companyId': IndexSchema(
+      id: 482756417767355356,
+      name: r'companyId',
+      unique: false,
+      replace: false,
+      properties: [
+        IndexPropertySchema(
+          name: r'companyId',
+          type: IndexType.hash,
+          caseSensitive: true,
+        )
+      ],
+    )
+  },
   links: {},
   embeddedSchemas: {},
   getId: _talhaoModelGetId,
@@ -48,6 +67,12 @@ int _talhaoModelEstimateSize(
   Map<Type, List<int>> allOffsets,
 ) {
   var bytesCount = offsets.last;
+  {
+    final value = object.companyId;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
   bytesCount += 3 + object.nome.length * 3;
   return bytesCount;
 }
@@ -58,8 +83,9 @@ void _talhaoModelSerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  writer.writeDateTime(offsets[0], object.dataCriacao);
-  writer.writeString(offsets[1], object.nome);
+  writer.writeString(offsets[0], object.companyId);
+  writer.writeDateTime(offsets[1], object.dataCriacao);
+  writer.writeString(offsets[2], object.nome);
 }
 
 TalhaoModel _talhaoModelDeserialize(
@@ -69,9 +95,10 @@ TalhaoModel _talhaoModelDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = TalhaoModel();
-  object.dataCriacao = reader.readDateTime(offsets[0]);
+  object.companyId = reader.readStringOrNull(offsets[0]);
+  object.dataCriacao = reader.readDateTime(offsets[1]);
   object.id = id;
-  object.nome = reader.readString(offsets[1]);
+  object.nome = reader.readString(offsets[2]);
   return object;
 }
 
@@ -83,8 +110,10 @@ P _talhaoModelDeserializeProp<P>(
 ) {
   switch (propertyId) {
     case 0:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 1:
+      return (reader.readDateTime(offset)) as P;
+    case 2:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -180,10 +209,230 @@ extension TalhaoModelQueryWhere
       ));
     });
   }
+
+  QueryBuilder<TalhaoModel, TalhaoModel, QAfterWhereClause> companyIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'companyId',
+        value: [null],
+      ));
+    });
+  }
+
+  QueryBuilder<TalhaoModel, TalhaoModel, QAfterWhereClause>
+      companyIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'companyId',
+        lower: [null],
+        includeLower: false,
+        upper: [],
+      ));
+    });
+  }
+
+  QueryBuilder<TalhaoModel, TalhaoModel, QAfterWhereClause> companyIdEqualTo(
+      String? companyId) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'companyId',
+        value: [companyId],
+      ));
+    });
+  }
+
+  QueryBuilder<TalhaoModel, TalhaoModel, QAfterWhereClause> companyIdNotEqualTo(
+      String? companyId) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'companyId',
+              lower: [],
+              upper: [companyId],
+              includeUpper: false,
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'companyId',
+              lower: [companyId],
+              includeLower: false,
+              upper: [],
+            ));
+      } else {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'companyId',
+              lower: [companyId],
+              includeLower: false,
+              upper: [],
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'companyId',
+              lower: [],
+              upper: [companyId],
+              includeUpper: false,
+            ));
+      }
+    });
+  }
 }
 
 extension TalhaoModelQueryFilter
     on QueryBuilder<TalhaoModel, TalhaoModel, QFilterCondition> {
+  QueryBuilder<TalhaoModel, TalhaoModel, QAfterFilterCondition>
+      companyIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'companyId',
+      ));
+    });
+  }
+
+  QueryBuilder<TalhaoModel, TalhaoModel, QAfterFilterCondition>
+      companyIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'companyId',
+      ));
+    });
+  }
+
+  QueryBuilder<TalhaoModel, TalhaoModel, QAfterFilterCondition>
+      companyIdEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'companyId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<TalhaoModel, TalhaoModel, QAfterFilterCondition>
+      companyIdGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'companyId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<TalhaoModel, TalhaoModel, QAfterFilterCondition>
+      companyIdLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'companyId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<TalhaoModel, TalhaoModel, QAfterFilterCondition>
+      companyIdBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'companyId',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<TalhaoModel, TalhaoModel, QAfterFilterCondition>
+      companyIdStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'companyId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<TalhaoModel, TalhaoModel, QAfterFilterCondition>
+      companyIdEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'companyId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<TalhaoModel, TalhaoModel, QAfterFilterCondition>
+      companyIdContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'companyId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<TalhaoModel, TalhaoModel, QAfterFilterCondition>
+      companyIdMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'companyId',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<TalhaoModel, TalhaoModel, QAfterFilterCondition>
+      companyIdIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'companyId',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<TalhaoModel, TalhaoModel, QAfterFilterCondition>
+      companyIdIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'companyId',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<TalhaoModel, TalhaoModel, QAfterFilterCondition>
       dataCriacaoEqualTo(DateTime value) {
     return QueryBuilder.apply(this, (query) {
@@ -433,6 +682,18 @@ extension TalhaoModelQueryLinks
 
 extension TalhaoModelQuerySortBy
     on QueryBuilder<TalhaoModel, TalhaoModel, QSortBy> {
+  QueryBuilder<TalhaoModel, TalhaoModel, QAfterSortBy> sortByCompanyId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'companyId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<TalhaoModel, TalhaoModel, QAfterSortBy> sortByCompanyIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'companyId', Sort.desc);
+    });
+  }
+
   QueryBuilder<TalhaoModel, TalhaoModel, QAfterSortBy> sortByDataCriacao() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'dataCriacao', Sort.asc);
@@ -460,6 +721,18 @@ extension TalhaoModelQuerySortBy
 
 extension TalhaoModelQuerySortThenBy
     on QueryBuilder<TalhaoModel, TalhaoModel, QSortThenBy> {
+  QueryBuilder<TalhaoModel, TalhaoModel, QAfterSortBy> thenByCompanyId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'companyId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<TalhaoModel, TalhaoModel, QAfterSortBy> thenByCompanyIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'companyId', Sort.desc);
+    });
+  }
+
   QueryBuilder<TalhaoModel, TalhaoModel, QAfterSortBy> thenByDataCriacao() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'dataCriacao', Sort.asc);
@@ -499,6 +772,13 @@ extension TalhaoModelQuerySortThenBy
 
 extension TalhaoModelQueryWhereDistinct
     on QueryBuilder<TalhaoModel, TalhaoModel, QDistinct> {
+  QueryBuilder<TalhaoModel, TalhaoModel, QDistinct> distinctByCompanyId(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'companyId', caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<TalhaoModel, TalhaoModel, QDistinct> distinctByDataCriacao() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'dataCriacao');
@@ -518,6 +798,12 @@ extension TalhaoModelQueryProperty
   QueryBuilder<TalhaoModel, int, QQueryOperations> idProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'id');
+    });
+  }
+
+  QueryBuilder<TalhaoModel, String?, QQueryOperations> companyIdProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'companyId');
     });
   }
 

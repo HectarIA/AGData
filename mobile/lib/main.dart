@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; 
-import 'package:workmanager/workmanager.dart'; // Adicionado
+import 'package:workmanager/workmanager.dart';
 import 'firebase_options.dart';
-import 'features/diagnostico/presentation/pages/selecao_talhao_screen.dart'; 
+import 'features/auth/presentation/pages/login_page.dart'; 
 import 'features/diagnostico/data/datasources/database_service.dart';
 import 'infra/repositories/sync_repository.dart';
 import 'infra/services/connectivity_service.dart';
@@ -123,7 +123,7 @@ class AGDataApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'AGdata',
-      home: const SelecaoTalhaoScreen(), 
+      home: const LoginPage(), 
       theme: AppTheme.lightTheme,
     );
   }
