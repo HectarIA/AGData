@@ -3,28 +3,31 @@ enum UserRole { superAdmin, admin, operador }
 class UserModel {
   final String uid;
   final String? cpf; 
-  final String email; // Adicionado: Campo obrigatório para o novo fluxo
+  final String email;
   final String companyId;
   final String name;
   final UserRole role;
+  final bool needsPasswordChange; // Flag para primeiro acesso
 
   UserModel({
     required this.uid,
     this.cpf,
-    required this.email, // Adicionado
+    required this.email,
     required this.companyId,
     required this.name,
     required this.role,
+    this.needsPasswordChange = false,
   });
 
   Map<String, dynamic> toMap() {
     return {
       'uid': uid,
       'cpf': cpf,
-      'email': email, // Adicionado
+      'email': email,
       'companyId': companyId,
       'name': name,
       'role': role.name,
+      'needsPasswordChange': needsPasswordChange,
     };
   }
 
@@ -32,10 +35,10 @@ class UserModel {
     return UserModel(
       uid: map['uid'] ?? '',
       cpf: map['cpf'],
-      email: map['email'] ?? '', // Adicionado
+      email: map['email'] ?? '',
       companyId: map['companyId'] ?? '',
       name: map['name'] ?? '',
-      // Tratamento para garantir que não quebre se o nome no banco for diferente
+      needsPasswordChange: map['needsPasswordChange'] ?? false,
       role: UserRole.values.firstWhere(
         (e) => e.name == map['role'],
         orElse: () => UserRole.operador,
