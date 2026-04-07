@@ -30,54 +30,35 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
   final _cpfFormatter = MaskTextInputFormatter(mask: '###.###.###-##');
   final _cnpjFormatter = MaskTextInputFormatter(mask: '##.###.###/####-##');
 
-  /// Gera uma senha aleatória de 6 dígitos
-  String _gerarSenhaProvisoria() {
-    return (Random().nextInt(900000) + 100000).toString();
-  }
+  String _gerarSenhaProvisoria() => (Random().nextInt(900000) + 100000).toString();
 
-  /// Abre o WhatsApp com a mensagem pronta
   Future<void> _enviarWhatsapp(String nome, String email, String senha) async {
     final mensagem = "Olá $nome! Seu acesso ao HectarIA está pronto.\n\n"
         "📧 Login: $email\n"
         "🔑 Senha Provisória: $senha\n\n"
-        "Obs: Por segurança, o sistema solicitará que você crie uma nova senha no seu primeiro acesso.";
-
+        "Obs: Por segurança, altere sua senha no primeiro acesso.";
     final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(mensagem)}");
-    
     try {
       if (await canLaunchUrl(url)) {
         await launchUrl(url, mode: LaunchMode.externalApplication);
-      } else {
-        throw 'Não foi possível abrir o WhatsApp';
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erro ao abrir WhatsApp. Verifique se o app está instalado.')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao abrir WhatsApp.')));
       }
     }
   }
 
   Future<void> _cadastrarTudo() async {
-    // 1. Verificação de permissão
-    if (_session.usuario?.role != UserRole.superAdmin) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Acesso negado.'), backgroundColor: Colors.red),
-      );
-      return;
-    }
-
+    if (_session.usuario?.role != UserRole.superAdmin) return;
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _carregando = true);
 
+    setState(() => _carregando = true);
     final senhaGerada = _gerarSenhaProvisoria();
 
     try {
-      // 2. Gerar ID da Empresa
       DocumentReference empresaRef = FirebaseFirestore.instance.collection('companies').doc();
 
-      // 3. Criar Admin via instância secundária (Evita deslogar o SuperAdmin)
       await _authRepo.cadastrarNovoUsuario(
         nome: _nomeAdminController.text,
         email: _emailAdminController.text.trim(),
@@ -87,7 +68,6 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
         cpf: _cpfAdminController.text,
       );
 
-      // 4. Registrar a Empresa no Firestore
       await empresaRef.set({
         'id': empresaRef.id,
         'name': _nomeEmpresaController.text,
@@ -96,18 +76,12 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
       });
 
       if (mounted) {
-        _exibirDialogoSucesso(
-          _nomeAdminController.text,
-          _emailAdminController.text.trim(),
-          senhaGerada,
-        );
+        _exibirDialogoSucesso(_nomeAdminController.text, _emailAdminController.text.trim(), senhaGerada);
         _limparCampos();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Falha no cadastro: $e'), backgroundColor: Colors.red),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Falha: $e'), backgroundColor: Colors.red));
       }
     } finally {
       if (mounted) setState(() => _carregando = false);
@@ -124,21 +98,18 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("Administrador criado com sucesso!"),
+            const Text("Cadastro realizado com sucesso!"),
             const SizedBox(height: 10),
-            Text("Senha gerada: ", style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text("Senha gerada:", style: TextStyle(fontWeight: FontWeight.bold)),
             Text(senha, style: const TextStyle(fontSize: 20, color: Colors.blueAccent, letterSpacing: 2)),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("FECHAR"),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("FECHAR")),
           ElevatedButton.icon(
             onPressed: () => _enviarWhatsapp(nome, email, senha),
             icon: const Icon(Icons.share),
-            label: const Text("ENVIAR WHATSAPP"),
+            label: const Text("WHATSAPP"),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
           ),
         ],
@@ -159,19 +130,11 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('HectarIA - Gestão Global'),
+        title: const Text('HectarIA - Global'),
         backgroundColor: const Color(0xFF1B5E20),
         foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await _authRepo.logout();
-              if (mounted) Navigator.pushReplacementNamed(context, '/login');
-            },
-          )
-        ],
       ),
+      drawer: const SuperAdminDrawer(), // DRAWER ADICIONADO AQUI
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -181,13 +144,12 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text('DADOS DA FAZENDA / EMPRESA', 
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green)),
+                  const Text('DADOS DA EMPRESA', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green)),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _nomeEmpresaController,
                     decoration: const InputDecoration(labelText: 'Nome Comercial', border: OutlineInputBorder()),
-                    validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
+                    validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
@@ -197,18 +159,17 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
                     keyboardType: TextInputType.number,
                   ),
                   const Divider(height: 40),
-                  const Text('ACESSO DO ADMINISTRADOR', 
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green)),
+                  const Text('ADMINISTRADOR', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green)),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _nomeAdminController,
                     decoration: const InputDecoration(labelText: 'Nome Completo', border: OutlineInputBorder()),
-                    validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
+                    validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
                     controller: _emailAdminController,
-                    decoration: const InputDecoration(labelText: 'E-mail Real (Login e Recuperação)', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(labelText: 'E-mail (Login)', border: OutlineInputBorder()),
                     keyboardType: TextInputType.emailAddress,
                     validator: (v) => (v == null || !v.contains('@')) ? 'E-mail inválido' : null,
                   ),
@@ -226,9 +187,9 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
                       backgroundColor: const Color(0xFF2E7D32),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    child: _carregando 
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
-                      : const Text('FINALIZAR CADASTRO', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: _carregando
+                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Text('FINALIZAR CADASTRO', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
@@ -239,19 +200,49 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance.collection('companies').orderBy('createdAt', descending: true).snapshots(),
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-                final docs = snapshot.data?.docs ?? [];
+                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                final docs = snapshot.data!.docs;
                 return ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: docs.length,
                   itemBuilder: (context, index) {
-                    final data = docs[index].data() as Map<String, dynamic>;
+                    final company = docs[index].data() as Map<String, dynamic>;
+                    final companyId = company['id'] ?? docs[index].id;
+
                     return Card(
                       child: ListTile(
                         leading: const Icon(Icons.agriculture, color: Colors.green),
-                        title: Text(data['name'] ?? 'Sem nome'),
-                        subtitle: Text('CNPJ: ${data['cnpj'] ?? 'N/A'}'),
+                        title: Text(company['name'] ?? 'Sem nome', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('CNPJ: ${company['cnpj'] ?? 'N/A'}'),
+                            
+                            // BUSCA DO ADMIN NA COLEÇÃO 'users'
+                            FutureBuilder<QuerySnapshot>(
+                              future: FirebaseFirestore.instance
+                                  .collection('users')
+                                  .where('companyId', isEqualTo: companyId)
+                                  .where('role', isEqualTo: 'admin') // Certifique-se que o texto é exatamente 'admin'
+                                  .limit(1)
+                                  .get(),
+                              builder: (context, userSnap) {
+                                if (userSnap.connectionState == ConnectionState.waiting) {
+                                  return const Text('Buscando resp...', style: TextStyle(fontSize: 12, color: Colors.grey));
+                                }
+                                if (userSnap.hasData && userSnap.data!.docs.isNotEmpty) {
+                                  final adminData = userSnap.data!.docs.first.data() as Map<String, dynamic>;
+                                  return Text(
+                                    'Resp: ${adminData['name']}',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey),
+                                  );
+                                }
+                                return const Text('Responsável não encontrado', style: TextStyle(fontSize: 12, color: Colors.red));
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -260,6 +251,50 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+//drawer
+class SuperAdminDrawer extends StatelessWidget {
+  const SuperAdminDrawer({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final session = sl<SessionController>();
+    final user = session.usuario;
+
+    return Drawer(
+      child: Column(
+        children: [
+          UserAccountsDrawerHeader(
+            decoration: const BoxDecoration(color: Color(0xFF1B5E20)),
+            currentAccountPicture: const CircleAvatar(
+              backgroundColor: Colors.white,
+              child: Icon(Icons.shield, color: Color(0xFF1B5E20), size: 40),
+            ),
+            accountName: Text(user?.name ?? 'Super Admin'),
+            accountEmail: Text(user?.email ?? 'admin@sistema.com'),
+          ),
+          const ListTile(
+            leading: Icon(Icons.admin_panel_settings),
+            title: Text("Acesso Restrito"),
+            subtitle: Text("Gestão de Empresas e Admins"),
+          ),
+          const Spacer(),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.logout, color: Colors.red),
+            title: const Text('Sair do Sistema', style: TextStyle(color: Colors.red)),
+            onTap: () async {
+              await sl<AuthRepository>().logout();
+              if (context.mounted) {
+                Navigator.pushReplacementNamed(context, '/login');
+              }
+            },
+          ),
+          const SizedBox(height: 20),
+        ],
       ),
     );
   }

@@ -4,7 +4,12 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; 
 import 'package:workmanager/workmanager.dart';
 import 'firebase_options.dart';
+
+// Importações de páginas para as rotas
 import 'features/auth/presentation/pages/login_page.dart'; 
+import 'features/auth/presentation/pages/super_admin_page.dart';
+import 'features/auth/presentation/pages/admin_page.dart';
+
 import 'features/diagnostico/data/datasources/database_service.dart';
 import 'infra/repositories/sync_repository.dart';
 import 'infra/services/connectivity_service.dart';
@@ -16,17 +21,11 @@ import 'core/di/injection_container.dart';
 void callbackDispatcher() {
   Workmanager().executeTask((taskName, inputData) async {
     try {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-      
+      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
       await DatabaseService.initialize();
-      
       await di.init();
-
       final syncRepo = sl<SyncRepository>();
       await syncRepo.sincronizarLeituras();
-      
       return Future.value(true);
     } catch (e) {
       return Future.value(false);
@@ -52,31 +51,21 @@ void main() async {
     },
     appRunner: () async {
       try {
-        await Firebase.initializeApp(
-          options: DefaultFirebaseOptions.currentPlatform,
-        );
-        debugPrint('Firebase inicializado.');
+        await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
       } catch (e, stackTrace) {
-        debugPrint('Erro ao inicializar Firebase: $e');
         await Sentry.captureException(e, stackTrace: stackTrace);
       }
 
       try {
         await DatabaseService.initialize();
-        debugPrint('Banco de dados Isar inicializado.');
       } catch (e, stackTrace) {
-        debugPrint('Erro ao inicializar Isar: $e');
         await Sentry.captureException(e, stackTrace: stackTrace);
       }
 
       await di.init();
 
       try {
-        await Workmanager().initialize(
-          callbackDispatcher,
-          isInDebugMode: true,
-        );
-        
+        await Workmanager().initialize(callbackDispatcher, isInDebugMode: true);
         await Workmanager().registerPeriodicTask(
           "sync-task-id",
           "syncTask",
@@ -86,20 +75,14 @@ void main() async {
             requiresBatteryNotLow: true,
           ),
         );
-        debugPrint('Workmanager inicializado.');
       } catch (e) {
-        debugPrint('Erro ao inicializar Workmanager: $e');
+        debugPrint('Erro no Workmanager: $e');
       }
 
       sl<ConnectivityService>().configurarOuvinteDeSincronizacao();
-
       _dispararSincronizacaoAutomatica();
 
-      runApp(
-        SentryWidget(
-          child: const AGDataApp(),
-        ),
-      );
+      runApp(SentryWidget(child: const AGDataApp()));
     },
   );
 }
@@ -108,9 +91,7 @@ void _dispararSincronizacaoAutomatica() async {
   final syncRepo = sl<SyncRepository>(); 
   try {
     await syncRepo.sincronizarLeituras();
-    debugPrint('[AUTO-SYNC] Sincronização inicial finalizada.');
   } catch (e, stackTrace) {
-    debugPrint('[AUTO-SYNC] Falha na sincronização automática: $e');
     await Sentry.captureException(e, stackTrace: stackTrace);
   }
 }
@@ -123,8 +104,14 @@ class AGDataApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'AGdata',
-      home: const LoginPage(), 
       theme: AppTheme.lightTheme,
+      home: const LoginPage(), 
+      // Definição das rotas nomeadas
+      routes: {
+        '/login': (context) => const LoginPage(),
+        '/super-admin': (context) => const SuperAdminPage(),
+        '/admin': (context) => const AdminPage(),
+      },
     );
   }
 }
