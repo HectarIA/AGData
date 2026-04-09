@@ -1,12 +1,13 @@
-import 'dart:math'; // Importado para gerar a senha aleatória
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:url_launcher/url_launcher.dart'; 
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../data/models/auth_model.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../controller/session_controller.dart';
 import '../widgets/add_user_dialog.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
@@ -19,65 +20,61 @@ class _AdminPageState extends State<AdminPage> {
   final _session = sl<SessionController>();
   final _firestore = FirebaseFirestore.instance;
 
+  // O AuthWrapper no main.dart cuidará da navegação após o logout
   void _logout() async {
-    await sl<AuthRepository>().logout();
-    if (mounted) {
-      Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+    try {
+      await sl<AuthRepository>().logout();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Erro ao sair: $e")));
+      }
     }
   }
 
-  // FUNÇÃO PARA GERAR SENHA ALEATÓRIA DE 6 DÍGITOS
   String _gerarSenhaAleatoria() {
     return (Random().nextInt(900000) + 100000).toString();
   }
 
-  // FUNÇÃO PARA DISPARAR O WHATSAPP COM LINK DIRETO E MENSAGEM DINÂMICA
   Future<void> _enviarAcessoWhatsApp(UserModel user) async {
     if (user.phone == null || user.phone!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Este usuário não possui telefone cadastrado.")),
+        const SnackBar(
+          content: Text("Este usuário não possui telefone cadastrado."),
+        ),
       );
       return;
     }
 
-    // Limpa o número para deixar apenas dígitos
     final numeroLimpo = user.phone!.replaceAll(RegExp(r'[^0-9]'), '');
-    
-    // Geração da senha para a mensagem
     final senhaGerada = _gerarSenhaAleatoria();
-    
-    // Texto formatado conforme solicitado
-    final mensagem = "Olá ${user.name}! 🌱\n\n"
+
+    final mensagem =
+        "Olá ${user.name}! 🌱\n\n"
         "Seu acesso ao app *HectarIA* está pronto.\n\n"
         "📧 *Login:* ${user.email}\n"
         "🔑 *Senha Provisória:* $senhaGerada\n\n"
-        "⚠️ *Atenção:* Por segurança, o aplicativo solicitará que você atualize sua senha no primeiro acesso.\n\n"
+        "⚠️ *Atenção:* Por segurança, o sistema solicitará a troca da senha no primeiro acesso.\n\n"
         "Dúvidas, estou à disposição!";
 
-    // Link direto wa.me/numero (55 adicionado para números brasileiros)
-    final url = "https://wa.me/55$numeroLimpo?text=${Uri.encodeComponent(mensagem)}";
+    final url =
+        "https://wa.me/55$numeroLimpo?text=${Uri.encodeComponent(mensagem)}";
     final uri = Uri.parse(url);
 
     try {
       if (await canLaunchUrl(uri)) {
-        await launchUrl(
-          uri, 
-          mode: LaunchMode.externalApplication,
-        );
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Não foi possível abrir o WhatsApp. Verifique se o app está instalado."),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
+        throw "Não foi possível abrir o WhatsApp.";
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Erro ao abrir WhatsApp: $e")),
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: Colors.orangeAccent,
+          ),
         );
       }
     }
@@ -92,34 +89,53 @@ class _AdminPageState extends State<AdminPage> {
         title: const Text("Gestão de Operadores"),
         backgroundColor: const Color(0xFF2E7D32),
         foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout), 
+            icon: const Icon(Icons.logout),
             onPressed: _logout,
-            tooltip: "Sair",
+            tooltip: "Sair do Sistema",
           ),
         ],
       ),
       body: Column(
         children: [
+          // Banner de Unidade
           Container(
-            padding: const EdgeInsets.all(16),
-            color: Colors.green.shade50,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              border: Border(bottom: BorderSide(color: Colors.green.shade100)),
+            ),
             child: Row(
               children: [
-                const Icon(Icons.business, color: Color(0xFF2E7D32)),
+                const Icon(
+                  Icons.location_city,
+                  color: Color(0xFF2E7D32),
+                  size: 20,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    "Unidade: $companyId",
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    overflow: TextOverflow.ellipsis,
+                  child: RichText(
+                    text: TextSpan(
+                      style: const TextStyle(
+                        color: Colors.black87,
+                        fontSize: 14,
+                      ),
+                      children: [
+                        const TextSpan(text: "Unidade: "),
+                        TextSpan(
+                          text: companyId,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-          
+
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: _firestore
@@ -127,68 +143,102 @@ class _AdminPageState extends State<AdminPage> {
                   .where('companyId', isEqualTo: companyId)
                   .snapshots(),
               builder: (context, snapshot) {
-                if (snapshot.hasError) return const Center(child: Text("Erro ao carregar dados"));
+                if (snapshot.hasError)
+                  return const Center(
+                    child: Text("Erro ao carregar lista de operadores."),
+                  );
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
                 final docs = snapshot.data!.docs;
-                if (docs.isEmpty) return const Center(child: Text("Nenhum operador nesta unidade."));
+                if (docs.isEmpty)
+                  return const Center(
+                    child: Text("Nenhum operador cadastrado."),
+                  );
 
                 return ListView.separated(
                   padding: const EdgeInsets.all(16),
                   itemCount: docs.length,
-                  separatorBuilder: (_, __) => const Divider(),
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
                   itemBuilder: (context, index) {
-                    final user = UserModel.fromMap(docs[index].data() as Map<String, dynamic>);
+                    final user = UserModel.fromMap(
+                      docs[index].data() as Map<String, dynamic>,
+                    );
                     final isMe = user.uid == _session.usuario?.uid;
 
-                    return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      leading: CircleAvatar(
-                        backgroundColor: user.role == UserRole.admin ? Colors.blue[700] : Colors.orange[700],
-                        child: Icon(
-                          user.role == UserRole.admin ? Icons.admin_panel_settings : Icons.person,
-                          color: Colors.white,
-                        ),
+                    return Card(
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: Colors.grey.shade200),
                       ),
-                      title: Text(
-                        user.name,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(user.email),
-                          Text(
-                            user.phone != null && user.phone!.isNotEmpty 
-                                ? "📱 ${user.phone}" 
-                                : "⚠️ Sem telefone",
-                            style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.all(12),
+                        leading: CircleAvatar(
+                          backgroundColor: user.role == UserRole.admin
+                              ? Colors.blue.shade100
+                              : Colors.orange.shade100,
+                          child: Icon(
+                            user.role == UserRole.admin
+                                ? Icons.admin_panel_settings
+                                : Icons.engineering,
+                            color: user.role == UserRole.admin
+                                ? Colors.blue.shade800
+                                : Colors.orange.shade800,
                           ),
-                        ],
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (!isMe)
-                            IconButton(
-                              icon: const Icon(Icons.chat, color: Colors.green),
-                              tooltip: "Enviar acesso via WhatsApp",
-                              onPressed: () => _enviarAcessoWhatsApp(user),
-                            ),
-                          
-                          if (isMe) 
-                            const Chip(
-                              label: Text("Você", style: TextStyle(fontSize: 10)),
-                              backgroundColor: Colors.grey,
-                            )
-                          else 
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Colors.red),
-                              onPressed: () => _confirmarExclusao(user),
-                            ),
-                        ],
+                        ),
+                        title: Text(
+                          user.name,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 4.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                user.email,
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                user.phone ?? "Sem telefone",
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (!isMe)
+                              IconButton(
+                                icon: FaIcon(
+                                  FontAwesomeIcons.whatsapp,
+                                  color: Colors.green,
+                                ),
+                                tooltip: "Enviar Credenciais",
+                                onPressed: () => _enviarAcessoWhatsApp(user),
+                              ),
+                            if (isMe)
+                              const Badge(
+                                label: Text("VOCÊ"),
+                                backgroundColor: Colors.blueGrey,
+                              )
+                            else
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.redAccent,
+                                ),
+                                onPressed: () => _confirmarExclusao(user),
+                              ),
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -201,9 +251,11 @@ class _AdminPageState extends State<AdminPage> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _abrirDialogoCadastro,
         backgroundColor: const Color(0xFF2E7D32),
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.person_add),
-        label: const Text("Novo Operador"),
+        icon: const Icon(Icons.person_add_alt_1, color: Colors.white),
+        label: const Text(
+          "ADICIONAR OPERADOR",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
       ),
     );
   }
@@ -220,28 +272,36 @@ class _AdminPageState extends State<AdminPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Excluir Usuário"),
-        content: Text("Deseja remover ${user.name}?\nEsta ação não pode ser desfeita."),
+        title: const Text("Remover Operador?"),
+        content: Text(
+          "Isso excluirá o acesso de ${user.name}. Essa ação é irreversível.",
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context), 
-            child: const Text("Cancelar")
+            onPressed: () => Navigator.pop(context),
+            child: const Text("CANCELAR"),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () async {
               try {
                 await _firestore.collection('users').doc(user.uid).delete();
-                if (mounted) Navigator.pop(context);
-              } catch (e) {
                 if (mounted) {
-                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Erro ao excluir: $e")),
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Operador removido com sucesso."),
+                    ),
                   );
                 }
+              } catch (e) {
+                if (mounted) Navigator.pop(context);
               }
             },
-            child: const Text("Excluir", style: TextStyle(color: Colors.white)),
+            child: const Text(
+              "CONFIRMAR EXCLUSÃO",
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
