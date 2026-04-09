@@ -22,19 +22,24 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   final _authRepo = sl<AuthRepository>();
   final _session = sl<SessionController>();
 
+  @override
+  void dispose() {
+    _novaSenhaController.dispose();
+    _confirmarSenhaController.dispose();
+    super.dispose();
+  }
+
   Future<void> _atualizarSenha() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _carregando = true);
 
     try {
-      // 1. Chama o método do repositório que já faz tudo:
-      // - Atualiza a senha no Firebase Auth
-      // - Muda 'needsPasswordChange' para false no Firestore
-      await _authRepo.atualizarSenha(_novaSenhaController.text);
+      // 1. Atualiza no Firebase e Firestore via Repositório
+      await _authRepo.atualizarSenha(_novaSenhaController.text.trim());
 
+      // 2. Atualiza a sessão local
       if (_session.usuario != null) {
-        // Criamos uma cópia do usuário com a flag alterada e salvamos na sessão
         final usuarioAtualizado = _session.usuario!.copyWith(
           needsPasswordChange: false,
         );
@@ -44,23 +49,31 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Senha atualizada com sucesso!"),
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text("Senha definida com sucesso!"),
+              ],
+            ),
             backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
           ),
         );
 
-        // 3. Redireciona para a tela principal
-        Navigator.pushReplacement(
-          context,
+        // 3. Redireciona limpando a pilha para evitar que o usuário volte para esta tela
+        Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const SelecaoTalhaoScreen()),
+          (route) => false,
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Erro ao atualizar senha: ${e.toString()}"),
+            content: Text("Erro ao atualizar: ${e.toString()}"),
             backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -72,108 +85,112 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text("Nova Senha"),
+        title: const Text("Segurança"),
         backgroundColor: const Color(0xFF1B5E20),
         foregroundColor: Colors.white,
-        automaticallyImplyLeading: false, // Bloqueia o botão de voltar
+        automaticallyImplyLeading: false,
+        actions: [
+          // Opção de sair caso o usuário não queira trocar a senha agora
+          IconButton(
+            onPressed: () => _authRepo.logout(),
+            icon: const Icon(Icons.exit_to_app),
+            tooltip: "Sair",
+          )
+        ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Icon(Icons.security, size: 64, color: Colors.orange),
-              const SizedBox(height: 20),
-              const Text(
-                "Segurança da Conta",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                "Esta é uma senha provisória. Por favor, crie uma nova senha definitiva para acessar o HectarIA.",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 32),
-
-              TextFormField(
-                controller: _novaSenhaController,
-                obscureText: !_senhaVisivel,
-                decoration: InputDecoration(
-                  labelText: "Nova Senha",
-                  hintText: "Mínimo 6 caracteres",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+        child: Column(
+          children: [
+            Container(
+              width: double.infinity,
+              color: const Color(0xFF1B5E20),
+              padding: const EdgeInsets.only(bottom: 32),
+              child: const Column(
+                children: [
+                  Icon(Icons.lock_reset, size: 80, color: Colors.white),
+                  SizedBox(height: 16),
+                  Text(
+                    "Defina sua senha",
+                    style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
                   ),
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _senhaVisivel ? Icons.visibility : Icons.visibility_off,
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      "Você está usando uma senha provisória. Para sua segurança, crie uma senha pessoal de acesso.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.black54, fontSize: 15),
                     ),
-                    onPressed: () =>
-                        setState(() => _senhaVisivel = !_senhaVisivel),
-                  ),
-                ),
-                validator: (v) => (v == null || v.length < 6)
-                    ? "A senha deve ter pelo menos 6 caracteres"
-                    : null,
-              ),
-              const SizedBox(height: 16),
-
-              TextFormField(
-                controller: _confirmarSenhaController,
-                obscureText: !_senhaVisivel,
-                decoration: InputDecoration(
-                  labelText: "Confirmar Nova Senha",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  prefixIcon: const Icon(Icons.lock_reset),
-                ),
-                validator: (v) {
-                  if (v != _novaSenhaController.text)
-                    return "As senhas não coincidem";
-                  return null;
-                },
-              ),
-              const SizedBox(height: 32),
-
-              SizedBox(
-                height: 55,
-                child: ElevatedButton(
-                  onPressed: _carregando ? null : _atualizarSenha,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2E7D32),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 2,
-                  ),
-                  child: _carregando
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text(
-                          "DEFINIR NOVA SENHA",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
+                    const SizedBox(height: 32),
+                    
+                    TextFormField(
+                      controller: _novaSenhaController,
+                      obscureText: !_senhaVisivel,
+                      keyboardType: TextInputType.visiblePassword,
+                      decoration: InputDecoration(
+                        labelText: "Nova Senha",
+                        hintText: "Mínimo 6 dígitos",
+                        prefixIcon: const Icon(Icons.vpn_key_outlined),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        suffixIcon: IconButton(
+                          icon: Icon(_senhaVisivel ? Icons.visibility : Icons.visibility_off),
+                          onPressed: () => setState(() => _senhaVisivel = !_senhaVisivel),
                         ),
+                      ),
+                      validator: (v) => (v == null || v.length < 6) ? "Senha muito curta" : null,
+                    ),
+                    
+                    const SizedBox(height: 20),
+                    
+                    TextFormField(
+                      controller: _confirmarSenhaController,
+                      obscureText: !_senhaVisivel,
+                      keyboardType: TextInputType.visiblePassword,
+                      decoration: InputDecoration(
+                        labelText: "Confirmar Senha",
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      validator: (v) {
+                        if (v != _novaSenhaController.text) return "As senhas não coincidem";
+                        return null;
+                      },
+                    ),
+                    
+                    const SizedBox(height: 40),
+                    
+                    SizedBox(
+                      height: 55,
+                      child: ElevatedButton(
+                        onPressed: _carregando ? null : _atualizarSenha,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2E7D32),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 3,
+                        ),
+                        child: _carregando
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : const Text(
+                                "SALVAR E ACESSAR",
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
