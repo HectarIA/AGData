@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+// Imports corrigidos baseados na sua estrutura de pastas
 import '../../../../core/di/injection_container.dart';
 import '../controller/session_controller.dart';
-import '../../../auth/data/models/auth_model.dart';
-import '../../../auth/data/repositories/auth_repository.dart';
+import '../../data/models/auth_model.dart';
+import '../../data/repositories/auth_repository.dart';
 
 class SuperAdminPage extends StatefulWidget {
   const SuperAdminPage({super.key});
@@ -20,6 +22,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
   final SessionController _session = sl<SessionController>();
   final AuthRepository _authRepo = sl<AuthRepository>();
 
+  // Controladores
   final _nomeEmpresaController = TextEditingController();
   final _cnpjController = TextEditingController();
   final _nomeAdminController = TextEditingController();
@@ -28,16 +31,31 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
   final _phoneAdminController = TextEditingController();
 
   bool _carregando = false;
+
+  // Formatadores
   final _cpfFormatter = MaskTextInputFormatter(mask: '###.###.###-##');
   final _cnpjFormatter = MaskTextInputFormatter(mask: '##.###.###/####-##');
   final _phoneFormatter = MaskTextInputFormatter(mask: '(##) #####-####');
+
+  @override
+  void dispose() {
+    _nomeEmpresaController.dispose();
+    _cnpjController.dispose();
+    _nomeAdminController.dispose();
+    _emailAdminController.dispose();
+    _cpfAdminController.dispose();
+    _phoneAdminController.dispose();
+    super.dispose();
+  }
 
   String _gerarSenhaProvisoria() => (Random().nextInt(900000) + 100000).toString();
 
   Future<void> _enviarWhatsapp(String nome, String email, String senha, String telefone) async {
     final numeroLimpo = telefone.replaceAll(RegExp(r'[^0-9]'), '');
     if (numeroLimpo.length < 10) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Número de telefone inválido.')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Número de telefone inválido.')));
+      }
       return;
     }
 
@@ -56,7 +74,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao abrir WhatsApp. Verifique se o app está instalado.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao abrir WhatsApp.')));
       }
     }
   }
@@ -127,7 +145,10 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(color: Colors.blueGrey.shade50, borderRadius: BorderRadius.circular(8)),
-              child: Text(senha, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blueAccent, letterSpacing: 4)),
+              child: SelectableText(
+                senha, 
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blueAccent, letterSpacing: 4)
+              ),
             ),
           ],
         ),
@@ -145,13 +166,13 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
   }
 
   void _limparCampos() {
-    _formKey.currentState!.reset();
     _nomeEmpresaController.clear();
     _cnpjController.clear();
     _nomeAdminController.clear();
     _emailAdminController.clear();
     _cpfAdminController.clear();
     _phoneAdminController.clear();
+    setState(() {});
   }
 
   @override
@@ -177,7 +198,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
                   TextFormField(
                     controller: _nomeEmpresaController,
                     decoration: const InputDecoration(labelText: 'Nome da Empresa', border: OutlineInputBorder(), prefixIcon: Icon(Icons.business)),
-                    validator: (v) => v!.isEmpty ? 'Informe o nome da empresa' : null,
+                    validator: (v) => (v == null || v.isEmpty) ? 'Informe o nome da empresa' : null,
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
@@ -192,7 +213,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
                   TextFormField(
                     controller: _nomeAdminController,
                     decoration: const InputDecoration(labelText: 'Nome Completo', border: OutlineInputBorder(), prefixIcon: Icon(Icons.person_outline)),
-                    validator: (v) => v!.isEmpty ? 'Informe o nome do administrador' : null,
+                    validator: (v) => (v == null || v.isEmpty) ? 'Informe o nome do administrador' : null,
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
@@ -207,7 +228,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
                     inputFormatters: [_phoneFormatter],
                     decoration: const InputDecoration(labelText: 'WhatsApp', border: OutlineInputBorder(), hintText: '(00) 00000-0000', prefixIcon: Icon(Icons.phone_iphone)),
                     keyboardType: TextInputType.phone,
-                    validator: (v) => v!.isEmpty ? 'Telefone obrigatório para envio de acesso' : null,
+                    validator: (v) => (v == null || v.isEmpty) ? 'Telefone obrigatório para envio de acesso' : null,
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
@@ -226,7 +247,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                       child: _carregando
-                          ? const CircularProgressIndicator(color: Colors.white)
+                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                           : const Text('CADASTRAR EMPRESA E ADMIN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     ),
                   ),
@@ -322,9 +343,10 @@ class SuperAdminDrawer extends StatelessWidget {
             accountName: Text(user?.name ?? 'Super Admin'),
             accountEmail: Text(user?.email ?? ''),
           ),
-          const ListTile(
-            leading: Icon(Icons.dashboard_outlined),
-            title: Text("Dashboard Global"),
+          ListTile(
+            leading: const Icon(Icons.dashboard_outlined),
+            title: const Text("Dashboard Global"),
+            onTap: () => Navigator.pop(context),
           ),
           const Spacer(),
           const Divider(),
@@ -333,7 +355,6 @@ class SuperAdminDrawer extends StatelessWidget {
             title: const Text('Sair do Sistema', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
             onTap: () async {
               await sl<AuthRepository>().logout();
-              // O AuthWrapper no main.dart cuidará do redirecionamento
             },
           ),
           const SizedBox(height: 20),
