@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // IMPORT NECESSÁRIO
 import '../controllers/selecao_talhao_controller.dart';
 import 'home_screen.dart';
 import '../../../../infra/repositories/sync_repository.dart';
 import '../../../../infra/services/connectivity_service.dart';
 import '../../../../core/di/injection_container.dart';
-import '../../../auth/presentation/pages/super_admin_page.dart';
-import '../../../auth/presentation/pages/admin_page.dart';
 import '../../../auth/presentation/controller/session_controller.dart';
-import '../../../auth/data/models/auth_model.dart';
+
+import '../../../auth/presentation/widgets/custom_drawer.dart'; 
 
 class SelecaoTalhaoScreen extends StatefulWidget {
   const SelecaoTalhaoScreen({super.key});
@@ -51,13 +48,6 @@ class _SelecaoTalhaoScreenState extends State<SelecaoTalhaoScreen> {
     setState(() => _isSyncing = false);
   }
 
-  Future<void> _handleLogout() async {
-    await FirebaseAuth.instance.signOut();
-    if (mounted) {
-      Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
-    }
-  }
-
   Future<void> _mostrarDialogoNovoTalhao() async {
     TextEditingController textController = TextEditingController();
     await showDialog(
@@ -89,134 +79,14 @@ class _SelecaoTalhaoScreenState extends State<SelecaoTalhaoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = _session.usuario;
-    final bool isSuperAdmin = user?.role == UserRole.superAdmin;
-    final bool isAdmin = user?.role == UserRole.admin;
-    final bool temAcessoGestao = isSuperAdmin || isAdmin;
+    // Usado apenas para a saudação de boas vindas na tela principal
+    final user = _session.usuario; 
 
     return Scaffold(
-      drawer: Drawer(
-        child: Column(
-          children: [
-            UserAccountsDrawerHeader(
-              
-              accountName: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text(user?.name ?? 'Usuário'),
-                  // BUSCA O NOME DA EMPRESA NO FIRESTORE
-                  if (!isSuperAdmin && user?.companyId != null)
-                    FutureBuilder<DocumentSnapshot>(
-                      future: FirebaseFirestore.instance
-                          .collection('companies')
-                          .doc(user!.companyId)
-                          .get(),
-                      builder: (context, snapshot) {
-                        String empresaTexto = "Carregando...";
-                        if (snapshot.hasData && snapshot.data!.exists) {
-                          final data = snapshot.data!.data() as Map<String, dynamic>;
-                          empresaTexto = data['name'] ?? user.companyId;
-                        } else if (snapshot.hasError) {
-                          empresaTexto = "Erro ao carregar";
-                        }
-
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.business, size: 14, color: Colors.white70),
-                              const SizedBox(width: 4),
-                              Flexible(
-                                child: Text(
-                                  empresaTexto,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w400,
-                                    color: Colors.white70,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                ],
-              ),
-              accountEmail: Text(user?.email ?? ''),
-            ),
-
-            ListTile(
-              leading: _isSyncing
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.sync, color: Colors.green),
-              title: const Text("Sincronizar Dados"),
-              onTap: _isSyncing
-                  ? null
-                  : () {
-                      Navigator.pop(context);
-                      _handleManualSync();
-                    },
-            ),
-
-            if (temAcessoGestao) ...[
-              const Divider(),
-              const Padding(
-                padding: EdgeInsets.only(left: 16, top: 8, bottom: 4),
-                child: Text(
-                  "Administração",
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              ListTile(
-                leading: Icon(
-                  isSuperAdmin ? Icons.admin_panel_settings : Icons.people,
-                  color: Colors.blue,
-                ),
-                title: Text(
-                  isSuperAdmin ? "Painel SuperAdmin" : "Gerenciar Funcionários",
-                ),
-                subtitle: Text(
-                  isSuperAdmin
-                      ? "Gestão global do sistema"
-                      : "Cadastro de operadores",
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => isSuperAdmin
-                          ? const SuperAdminPage()
-                          : const AdminPage(),
-                    ),
-                  );
-                },
-              ),
-            ],
-
-            const Spacer(),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text(
-                "Sair da Conta",
-                style: TextStyle(color: Colors.red),
-              ),
-              onTap: _handleLogout,
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
+      // CHAMADA DO SEU CUSTOM DRAWER AQUI
+      drawer: CustomDrawer(
+        onSync: _handleManualSync,
+        isSyncing: _isSyncing,
       ),
 
       floatingActionButton: FloatingActionButton.extended(
@@ -262,7 +132,6 @@ class _SelecaoTalhaoScreenState extends State<SelecaoTalhaoScreen> {
                                       Scaffold.of(context).openDrawer(),
                                 ),
                               ),
-
                               const Text(
                                 'HectarIA',
                                 style: TextStyle(
@@ -271,7 +140,6 @@ class _SelecaoTalhaoScreenState extends State<SelecaoTalhaoScreen> {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-
                               const SizedBox(width: 48),
                             ],
                           ),
@@ -292,8 +160,7 @@ class _SelecaoTalhaoScreenState extends State<SelecaoTalhaoScreen> {
                                 style: TextStyle(fontWeight: FontWeight.w400),
                               ),
                               TextSpan(
-                                text:
-                                    '${user?.name.split(' ').first ?? 'Usuário'}!',
+                                text: '${user?.name.split(' ').first ?? 'Usuário'}!',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -346,10 +213,8 @@ class _SelecaoTalhaoScreenState extends State<SelecaoTalhaoScreen> {
                                 physics: const NeverScrollableScrollPhysics(),
                                 itemCount: _controller.talhoes.length,
                                 itemBuilder: (context, index) {
-                                  final talhao =
-                                      _controller.talhoes[index].nome;
-                                  final isSelected =
-                                      _controller.talhaoSelecionado == talhao;
+                                  final talhao = _controller.talhoes[index].nome;
+                                  final isSelected = _controller.talhaoSelecionado == talhao;
                                   return Card(
                                     color: isSelected
                                         ? Colors.green[50]
@@ -387,8 +252,7 @@ class _SelecaoTalhaoScreenState extends State<SelecaoTalhaoScreen> {
                                               Icons.arrow_forward_ios,
                                               size: 14,
                                             ),
-                                      onTap: () =>
-                                          _controller.selecionarTalhao(talhao),
+                                      onTap: () => _controller.selecionarTalhao(talhao),
                                     ),
                                   );
                                 },
@@ -402,14 +266,13 @@ class _SelecaoTalhaoScreenState extends State<SelecaoTalhaoScreen> {
                                 onPressed: _controller.talhaoSelecionado == null
                                     ? null
                                     : () => Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => HomeScreen(
-                                            talhaoAtual:
-                                                _controller.talhaoSelecionado!,
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => HomeScreen(
+                                              talhaoAtual: _controller.talhaoSelecionado!,
+                                            ),
                                           ),
                                         ),
-                                      ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF2E7D32),
                                   foregroundColor: Colors.white,
