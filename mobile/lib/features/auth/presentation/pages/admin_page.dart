@@ -1,13 +1,12 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../data/models/auth_model.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../controller/session_controller.dart';
-import '../widgets/add_user_dialog.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'add_user_page.dart'; // Importe a nova página aqui
 
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
@@ -20,63 +19,33 @@ class _AdminPageState extends State<AdminPage> {
   final _session = sl<SessionController>();
   final _firestore = FirebaseFirestore.instance;
 
-  // O AuthWrapper no main.dart cuidará da navegação após o logout
   void _logout() async {
     try {
       await sl<AuthRepository>().logout();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Erro ao sair: $e")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Erro ao sair: $e")),
+        );
       }
     }
   }
 
-  String _gerarSenhaAleatoria() {
-    return (Random().nextInt(900000) + 100000).toString();
-  }
-
+  // Função para reenviar credenciais de um usuário já existente
   Future<void> _enviarAcessoWhatsApp(UserModel user) async {
-    if (user.phone == null || user.phone!.isEmpty) {
+    final numeroLimpo = user.phone?.replaceAll(RegExp(r'[^0-9]'), '') ?? '';
+    if (numeroLimpo.length < 10) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Este usuário não possui telefone cadastrado."),
-        ),
+        const SnackBar(content: Text("Telefone inválido para envio.")),
       );
       return;
     }
 
-    final numeroLimpo = user.phone!.replaceAll(RegExp(r'[^0-9]'), '');
-    final senhaGerada = _gerarSenhaAleatoria();
+    final mensagem = "Olá ${user.name}! 🌱\nSua conta no HectarIA está ativa.\n📧 Login: ${user.email}";
+    final url = Uri.parse("https://wa.me/55$numeroLimpo?text=${Uri.encodeComponent(mensagem)}");
 
-    final mensagem =
-        "Olá ${user.name}! 🌱\n\n"
-        "Seu acesso ao app *HectarIA* está pronto.\n\n"
-        "📧 *Login:* ${user.email}\n"
-        "🔑 *Senha Provisória:* $senhaGerada\n\n"
-        "⚠️ *Atenção:* Por segurança, o sistema solicitará a troca da senha no primeiro acesso.\n\n"
-        "Dúvidas, estou à disposição!";
-
-    final url =
-        "https://wa.me/55$numeroLimpo?text=${Uri.encodeComponent(mensagem)}";
-    final uri = Uri.parse(url);
-
-    try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        throw "Não foi possível abrir o WhatsApp.";
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: Colors.orangeAccent,
-          ),
-        );
-      }
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -89,53 +58,26 @@ class _AdminPageState extends State<AdminPage> {
         title: const Text("Gestão de Operadores"),
         backgroundColor: const Color(0xFF2E7D32),
         foregroundColor: Colors.white,
-        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _logout,
-            tooltip: "Sair do Sistema",
           ),
         ],
       ),
       body: Column(
         children: [
-          // Banner de Unidade
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.green.shade50,
-              border: Border(bottom: BorderSide(color: Colors.green.shade100)),
-            ),
+            padding: const EdgeInsets.all(16),
+            color: Colors.green.shade50,
             child: Row(
               children: [
-                const Icon(
-                  Icons.location_city,
-                  color: Color(0xFF2E7D32),
-                  size: 20,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: RichText(
-                    text: TextSpan(
-                      style: const TextStyle(
-                        color: Colors.black87,
-                        fontSize: 14,
-                      ),
-                      children: [
-                        const TextSpan(text: "Unidade: "),
-                        TextSpan(
-                          text: companyId,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                const Icon(Icons.business, color: Color(0xFF2E7D32)),
+                const SizedBox(width: 10),
+                Text("Unidade: $companyId", style: const TextStyle(fontWeight: FontWeight.bold)),
               ],
             ),
           ),
-
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: _firestore
@@ -143,98 +85,34 @@ class _AdminPageState extends State<AdminPage> {
                   .where('companyId', isEqualTo: companyId)
                   .snapshots(),
               builder: (context, snapshot) {
-                if (snapshot.hasError)
-                  return const Center(
-                    child: Text("Erro ao carregar lista de operadores."),
-                  );
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+                if (snapshot.hasError) return const Center(child: Text("Erro ao carregar."));
+                if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
 
                 final docs = snapshot.data!.docs;
-                if (docs.isEmpty)
-                  return const Center(
-                    child: Text("Nenhum operador cadastrado."),
-                  );
-
                 return ListView.separated(
                   padding: const EdgeInsets.all(16),
                   itemCount: docs.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
-                    final user = UserModel.fromMap(
-                      docs[index].data() as Map<String, dynamic>,
-                    );
+                    final user = UserModel.fromMap(docs[index].data() as Map<String, dynamic>);
                     final isMe = user.uid == _session.usuario?.uid;
 
                     return Card(
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: Colors.grey.shade200),
-                      ),
                       child: ListTile(
-                        contentPadding: const EdgeInsets.all(12),
-                        leading: CircleAvatar(
-                          backgroundColor: user.role == UserRole.admin
-                              ? Colors.blue.shade100
-                              : Colors.orange.shade100,
-                          child: Icon(
-                            user.role == UserRole.admin
-                                ? Icons.admin_panel_settings
-                                : Icons.engineering,
-                            color: user.role == UserRole.admin
-                                ? Colors.blue.shade800
-                                : Colors.orange.shade800,
-                          ),
-                        ),
-                        title: Text(
-                          user.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Padding(
-                          padding: const EdgeInsets.only(top: 4.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                user.email,
-                                style: const TextStyle(fontSize: 13),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                user.phone ?? "Sem telefone",
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        leading: Icon(user.role == UserRole.admin ? Icons.admin_panel_settings : Icons.person),
+                        title: Text(user.name),
+                        subtitle: Text(user.email),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             if (!isMe)
                               IconButton(
-                                icon: FaIcon(
-                                  FontAwesomeIcons.whatsapp,
-                                  color: Colors.green,
-                                ),
-                                tooltip: "Enviar Credenciais",
+                                icon: const FaIcon(FontAwesomeIcons.whatsapp, color: Colors.green),
                                 onPressed: () => _enviarAcessoWhatsApp(user),
                               ),
-                            if (isMe)
-                              const Badge(
-                                label: Text("VOCÊ"),
-                                backgroundColor: Colors.blueGrey,
-                              )
-                            else
+                            if (!isMe)
                               IconButton(
-                                icon: const Icon(
-                                  Icons.delete_outline,
-                                  color: Colors.redAccent,
-                                ),
+                                icon: const Icon(Icons.delete_outline, color: Colors.red),
                                 onPressed: () => _confirmarExclusao(user),
                               ),
                           ],
@@ -249,22 +127,14 @@ class _AdminPageState extends State<AdminPage> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _abrirDialogoCadastro,
-        backgroundColor: const Color(0xFF2E7D32),
-        icon: const Icon(Icons.person_add_alt_1, color: Colors.white),
-        label: const Text(
-          "ADICIONAR OPERADOR",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AddUserPage(), fullscreenDialog: true),
         ),
+        backgroundColor: const Color(0xFF2E7D32),
+        label: const Text("ADICIONAR OPERADOR", style: TextStyle(color: Colors.white)),
+        icon: const Icon(Icons.person_add, color: Colors.white),
       ),
-    );
-  }
-
-  void _abrirDialogoCadastro() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const AddUserDialog(),
     );
   }
 
@@ -272,36 +142,16 @@ class _AdminPageState extends State<AdminPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Remover Operador?"),
-        content: Text(
-          "Isso excluirá o acesso de ${user.name}. Essa ação é irreversível.",
-        ),
+        title: const Text("Excluir?"),
+        content: Text("Remover ${user.name}?"),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("CANCELAR"),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("NÃO")),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () async {
-              try {
-                await _firestore.collection('users').doc(user.uid).delete();
-                if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Operador removido com sucesso."),
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (mounted) Navigator.pop(context);
-              }
+              await _firestore.collection('users').doc(user.uid).delete();
+              Navigator.pop(context);
             },
-            child: const Text(
-              "CONFIRMAR EXCLUSÃO",
-              style: TextStyle(color: Colors.white),
-            ),
+            child: const Text("SIM"),
           ),
         ],
       ),
