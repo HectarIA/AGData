@@ -2,10 +2,12 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+// Imports baseados na sua estrutura de pastas
 import '../../../../core/di/injection_container.dart';
 import '../controller/session_controller.dart';
-import '../../../auth/data/models/auth_model.dart';
-import '../../../auth/data/repositories/auth_repository.dart';
+import '../../data/models/auth_model.dart';
+import '../../data/repositories/auth_repository.dart';
 
 class AddUserPage extends StatefulWidget {
   const AddUserPage({super.key});
@@ -16,9 +18,12 @@ class AddUserPage extends StatefulWidget {
 
 class _AddUserPageState extends State<AddUserPage> {
   final _formKey = GlobalKey<FormState>();
+  
+  // Injeção de dependências
   final SessionController _session = sl<SessionController>();
   final AuthRepository _authRepo = sl<AuthRepository>();
 
+  // Controladores
   final _nomeController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -26,7 +31,18 @@ class _AddUserPageState extends State<AddUserPage> {
   UserRole _roleSelecionada = UserRole.operador;
   bool _carregando = false;
 
-  final _phoneFormatter = MaskTextInputFormatter(mask: '(##) #####-####');
+  final _phoneFormatter = MaskTextInputFormatter(
+    mask: '(##) #####-####',
+    filter: {"#": RegExp(r'[0-9]')},
+  );
+
+  @override
+  void dispose() {
+    _nomeController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
 
   String _gerarSenhaProvisoria() => (Random().nextInt(900000) + 100000).toString();
 
@@ -57,7 +73,7 @@ class _AddUserPageState extends State<AddUserPage> {
   }
 
   Future<void> _salvar() async {
-    // Apenas admins e superAdmins da empresa podem cadastrar novos usuários aqui
+    // Segurança: impede que operadores tentem salvar, mesmo que cheguem nesta tela
     if (_session.usuario?.role == UserRole.operador) return;
     if (!_formKey.currentState!.validate()) return;
 
@@ -65,12 +81,11 @@ class _AddUserPageState extends State<AddUserPage> {
     final senhaGerada = _gerarSenhaProvisoria();
 
     try {
-      // Usando o padrão do AuthRepository conforme visto na SuperAdminPage
       await _authRepo.cadastrarNovoUsuario(
         nome: _nomeController.text.trim(),
         email: _emailController.text.trim(),
         senha: senhaGerada,
-        role: _roleSelecionada.name, // 'admin' ou 'operador'
+        role: _roleSelecionada.name,
         companyId: _session.usuario?.companyId ?? '',
         phone: _phoneController.text,
       );
@@ -112,7 +127,10 @@ class _AddUserPageState extends State<AddUserPage> {
               padding: const EdgeInsets.all(8),
               margin: const EdgeInsets.symmetric(vertical: 8),
               decoration: BoxDecoration(color: Colors.blueGrey.shade50, borderRadius: BorderRadius.circular(8)),
-              child: Text(senha, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blueAccent, letterSpacing: 4)),
+              child: SelectableText(
+                senha, 
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blueAccent, letterSpacing: 4)
+              ),
             ),
           ],
         ),
@@ -166,7 +184,7 @@ class _AddUserPageState extends State<AddUserPage> {
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.person_outline),
                 ),
-                validator: (v) => v!.isEmpty ? "Informe o nome" : null,
+                validator: (v) => (v == null || v.isEmpty) ? "Informe o nome" : null,
               ),
               const SizedBox(height: 16),
               
@@ -192,7 +210,7 @@ class _AddUserPageState extends State<AddUserPage> {
                   prefixIcon: Icon(Icons.phone_iphone),
                 ),
                 keyboardType: TextInputType.phone,
-                validator: (v) => v!.isEmpty ? "Telefone obrigatório" : null,
+                validator: (v) => (v == null || v.isEmpty) ? "Telefone obrigatório" : null,
               ),
               const SizedBox(height: 16),
               
@@ -228,7 +246,11 @@ class _AddUserPageState extends State<AddUserPage> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   child: _carregando 
-                    ? const CircularProgressIndicator(color: Colors.white)
+                    ? const SizedBox(
+                        height: 20, 
+                        width: 20, 
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                      )
                     : const Text(
                         "CADASTRAR E GERAR ACESSO", 
                         style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
