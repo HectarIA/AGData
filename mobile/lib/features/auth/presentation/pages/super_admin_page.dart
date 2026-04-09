@@ -25,33 +25,38 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
   final _nomeAdminController = TextEditingController();
   final _emailAdminController = TextEditingController();
   final _cpfAdminController = TextEditingController();
-  final _phoneAdminController = TextEditingController(); // 📱 Novo controller
+  final _phoneAdminController = TextEditingController();
 
   bool _carregando = false;
   final _cpfFormatter = MaskTextInputFormatter(mask: '###.###.###-##');
   final _cnpjFormatter = MaskTextInputFormatter(mask: '##.###.###/####-##');
-  final _phoneFormatter = MaskTextInputFormatter(mask: '(##) #####-####'); // 📱 Máscara de telefone
+  final _phoneFormatter = MaskTextInputFormatter(mask: '(##) #####-####');
 
   String _gerarSenhaProvisoria() => (Random().nextInt(900000) + 100000).toString();
 
-  // 📱 Agora recebe o telefone para abrir a conversa direta
   Future<void> _enviarWhatsapp(String nome, String email, String senha, String telefone) async {
     final numeroLimpo = telefone.replaceAll(RegExp(r'[^0-9]'), '');
-    final mensagem = "Olá adiministrador $nome! Seu acesso ao HectarIA está pronto.\n\n"
+    if (numeroLimpo.length < 10) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Número de telefone inválido.')));
+      return;
+    }
+
+    final mensagem = "Olá administrador $nome! Seu acesso ao HectarIA está pronto.\n\n"
         "📧 Login: $email\n"
         "🔑 Senha Provisória: $senha\n\n"
         "Obs: Por segurança, altere sua senha no primeiro acesso.";
     
-    // 📱 Link direto para o número cadastrado
     final url = Uri.parse("https://wa.me/55$numeroLimpo?text=${Uri.encodeComponent(mensagem)}");
     
     try {
       if (await canLaunchUrl(url)) {
         await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        throw 'Não foi possível abrir o WhatsApp';
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao abrir WhatsApp.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao abrir WhatsApp. Verifique se o app está instalado.')));
       }
     }
   }
@@ -64,37 +69,42 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
     final senhaGerada = _gerarSenhaProvisoria();
 
     try {
+      // 1. Cria a referência da empresa primeiro para ter o ID
       DocumentReference empresaRef = FirebaseFirestore.instance.collection('companies').doc();
 
+      // 2. Tenta cadastrar o usuário administrador
       await _authRepo.cadastrarNovoUsuario(
-        nome: _nomeAdminController.text,
+        nome: _nomeAdminController.text.trim(),
         email: _emailAdminController.text.trim(),
         senha: senhaGerada,
         role: 'admin',
         companyId: empresaRef.id,
         cpf: _cpfAdminController.text,
-        phone: _phoneAdminController.text, // 📱 Enviando telefone
+        phone: _phoneAdminController.text,
       );
 
+      // 3. Se o usuário foi criado, salva os dados da empresa
       await empresaRef.set({
         'id': empresaRef.id,
-        'name': _nomeEmpresaController.text,
+        'name': _nomeEmpresaController.text.trim(),
         'cnpj': _cnpjController.text,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
       if (mounted) {
         _exibirDialogoSucesso(
-          _nomeAdminController.text, 
+          _nomeAdminController.text.trim(), 
           _emailAdminController.text.trim(), 
           senhaGerada,
-          _phoneAdminController.text // 📱 Passando para o diálogo
+          _phoneAdminController.text
         );
         _limparCampos();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Falha: $e'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Falha no cadastro: $e'), backgroundColor: Colors.red)
+        );
       }
     } finally {
       if (mounted) setState(() => _carregando = false);
@@ -111,19 +121,23 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("Cadastro realizado com sucesso!"),
-            const SizedBox(height: 10),
-            const Text("Senha gerada:", style: TextStyle(fontWeight: FontWeight.bold)),
-            Text(senha, style: const TextStyle(fontSize: 20, color: Colors.blueAccent, letterSpacing: 2)),
+            const Text("Administrador e Empresa cadastrados!"),
+            const SizedBox(height: 16),
+            const Text("Senha provisória:", style: TextStyle(fontWeight: FontWeight.bold)),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: Colors.blueGrey.shade50, borderRadius: BorderRadius.circular(8)),
+              child: Text(senha, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blueAccent, letterSpacing: 4)),
+            ),
           ],
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("FECHAR")),
           ElevatedButton.icon(
-            onPressed: () => _enviarWhatsapp(nome, email, senha, telefone), // 📱 Envia com o número
-            icon: const Icon(Icons.share),
-            label: const Text("WHATSAPP"),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            onPressed: () => _enviarWhatsapp(nome, email, senha, telefone),
+            icon: const Icon(Icons.send, size: 18),
+            label: const Text("ENVIAR ACESSO"),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
           ),
         ],
       ),
@@ -137,14 +151,14 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
     _nomeAdminController.clear();
     _emailAdminController.clear();
     _cpfAdminController.clear();
-    _phoneAdminController.clear(); // 📱 Limpando telefone
+    _phoneAdminController.clear();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('HectarIA - Global'),
+        title: const Text('Painel Global HectarIA'),
         backgroundColor: const Color(0xFF1B5E20),
         foregroundColor: Colors.white,
       ),
@@ -158,73 +172,85 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text('DADOS DA EMPRESA', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green)),
+                  const Text('DADOS DA EMPRESA', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green, letterSpacing: 1.2)),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _nomeEmpresaController,
-                    decoration: const InputDecoration(labelText: 'Nome Comercial', border: OutlineInputBorder()),
-                    validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
+                    decoration: const InputDecoration(labelText: 'Nome da Empresa', border: OutlineInputBorder(), prefixIcon: Icon(Icons.business)),
+                    validator: (v) => v!.isEmpty ? 'Informe o nome da empresa' : null,
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
                     controller: _cnpjController,
                     inputFormatters: [_cnpjFormatter],
-                    decoration: const InputDecoration(labelText: 'CNPJ', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(labelText: 'CNPJ', border: OutlineInputBorder(), prefixIcon: Icon(Icons.assignment_ind)),
                     keyboardType: TextInputType.number,
                   ),
-                  const Divider(height: 40),
-                  const Text('ADMINISTRADOR', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green)),
+                  const Divider(height: 40, thickness: 1),
+                  const Text('ADMINISTRADOR RESPONSÁVEL', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green, letterSpacing: 1.2)),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _nomeAdminController,
-                    decoration: const InputDecoration(labelText: 'Nome Completo', border: OutlineInputBorder()),
-                    validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
+                    decoration: const InputDecoration(labelText: 'Nome Completo', border: OutlineInputBorder(), prefixIcon: Icon(Icons.person_outline)),
+                    validator: (v) => v!.isEmpty ? 'Informe o nome do administrador' : null,
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
                     controller: _emailAdminController,
-                    decoration: const InputDecoration(labelText: 'E-mail (Login)', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(labelText: 'E-mail de Login', border: OutlineInputBorder(), prefixIcon: Icon(Icons.alternate_email)),
                     keyboardType: TextInputType.emailAddress,
                     validator: (v) => (v == null || !v.contains('@')) ? 'E-mail inválido' : null,
                   ),
                   const SizedBox(height: 10),
-                  // 📱 NOVO CAMPO DE TELEFONE NO UI
                   TextFormField(
                     controller: _phoneAdminController,
                     inputFormatters: [_phoneFormatter],
-                    decoration: const InputDecoration(labelText: 'Telefone / WhatsApp', border: OutlineInputBorder(), hintText: '(00) 00000-0000'),
+                    decoration: const InputDecoration(labelText: 'WhatsApp', border: OutlineInputBorder(), hintText: '(00) 00000-0000', prefixIcon: Icon(Icons.phone_iphone)),
                     keyboardType: TextInputType.phone,
-                    validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
+                    validator: (v) => v!.isEmpty ? 'Telefone obrigatório para envio de acesso' : null,
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
                     controller: _cpfAdminController,
                     inputFormatters: [_cpfFormatter],
-                    decoration: const InputDecoration(labelText: 'CPF', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(labelText: 'CPF', border: OutlineInputBorder(), prefixIcon: Icon(Icons.badge_outlined)),
                     keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: _carregando ? null : _cadastrarTudo,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2E7D32),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                  SizedBox(
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: _carregando ? null : _cadastrarTudo,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2E7D32),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: _carregando
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text('CADASTRAR EMPRESA E ADMIN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     ),
-                    child: _carregando
-                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : const Text('FINALIZAR CADASTRO', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 40),
-            const Align(alignment: Alignment.centerLeft, child: Text('EMPRESAS CADASTRADAS', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
-            const SizedBox(height: 12),
+            const Row(
+              children: [
+                Icon(Icons.list_alt, color: Colors.green),
+                SizedBox(width: 8),
+                Text('EMPRESAS PARCEIRAS', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const Divider(),
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance.collection('companies').orderBy('createdAt', descending: true).snapshots(),
               builder: (context, snapshot) {
+                if (snapshot.hasError) return const Text('Erro ao carregar empresas');
                 if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                
                 final docs = snapshot.data!.docs;
+                if (docs.isEmpty) return const Padding(padding: EdgeInsets.all(20), child: Text("Nenhuma empresa cadastrada."));
+
                 return ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -234,8 +260,10 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
                     final companyId = company['id'] ?? docs[index].id;
 
                     return Card(
+                      elevation: 2,
+                      margin: const EdgeInsets.symmetric(vertical: 6),
                       child: ListTile(
-                        leading: const Icon(Icons.agriculture, color: Colors.green),
+                        leading: const CircleAvatar(backgroundColor: Color(0xFFE8F5E9), child: Icon(Icons.agriculture, color: Colors.green)),
                         title: Text(company['name'] ?? 'Sem nome', style: const TextStyle(fontWeight: FontWeight.bold)),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -249,17 +277,14 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
                                   .limit(1)
                                   .get(),
                               builder: (context, userSnap) {
-                                if (userSnap.connectionState == ConnectionState.waiting) {
-                                  return const Text('Buscando resp...', style: TextStyle(fontSize: 12, color: Colors.grey));
-                                }
                                 if (userSnap.hasData && userSnap.data!.docs.isNotEmpty) {
                                   final adminData = userSnap.data!.docs.first.data() as Map<String, dynamic>;
                                   return Text(
-                                    'Resp: ${adminData['name']} ${adminData['phone'] != null ? "- ${adminData['phone']}" : ""}',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey),
+                                    'Adm: ${adminData['name']} (${adminData['phone'] ?? 'S/ Tel'})',
+                                    style: const TextStyle(fontSize: 12, color: Colors.blueGrey, fontWeight: FontWeight.w600),
                                   );
                                 }
-                                return const Text('Responsável não encontrado', style: TextStyle(fontSize: 12, color: Colors.red));
+                                return const SizedBox.shrink();
                               },
                             ),
                           ],
@@ -277,7 +302,6 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
   }
 }
 
-// Drawer mantido como solicitado
 class SuperAdminDrawer extends StatelessWidget {
   const SuperAdminDrawer({super.key});
 
@@ -293,26 +317,23 @@ class SuperAdminDrawer extends StatelessWidget {
             decoration: const BoxDecoration(color: Color(0xFF1B5E20)),
             currentAccountPicture: const CircleAvatar(
               backgroundColor: Colors.white,
-              child: Icon(Icons.shield, color: Color(0xFF1B5E20), size: 40),
+              child: Icon(Icons.admin_panel_settings, color: Color(0xFF1B5E20), size: 40),
             ),
             accountName: Text(user?.name ?? 'Super Admin'),
-            accountEmail: Text(user?.email ?? 'admin@sistema.com'),
+            accountEmail: Text(user?.email ?? ''),
           ),
           const ListTile(
-            leading: Icon(Icons.admin_panel_settings),
-            title: Text("Acesso Restrito"),
-            subtitle: Text("Gestão de Empresas e Admins"),
+            leading: Icon(Icons.dashboard_outlined),
+            title: Text("Dashboard Global"),
           ),
           const Spacer(),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
-            title: const Text('Sair do Sistema', style: TextStyle(color: Colors.red)),
+            title: const Text('Sair do Sistema', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
             onTap: () async {
               await sl<AuthRepository>().logout();
-              if (context.mounted) {
-                Navigator.pushReplacementNamed(context, '/login');
-              }
+              // O AuthWrapper no main.dart cuidará do redirecionamento
             },
           ),
           const SizedBox(height: 20),
