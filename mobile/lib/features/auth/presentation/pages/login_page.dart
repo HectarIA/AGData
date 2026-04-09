@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Importação essencial para tratar exceções
 import '../../../../core/di/injection_container.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../controller/session_controller.dart';
 import '../../../../features/diagnostico/presentation/pages/selecao_talhao_screen.dart';
 import 'super_admin_page.dart';
-import 'change_password_page.dart'; // Certifique-se de criar este arquivo
-import '../../data/models/auth_model.dart'; // Ajuste o caminho se necessário
+import 'change_password_page.dart'; 
+import '../../data/models/auth_model.dart'; 
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -31,20 +32,17 @@ class _LoginPageState extends State<LoginPage> {
       final authRepo = sl<AuthRepository>();
       final session = sl<SessionController>();
 
-      // Realiza o login no Firebase Auth
       final userCredential = await authRepo.loginComEmail(
         _emailController.text.trim(),
         _senhaController.text,
       );
 
-      // Busca os dados complementares no Firestore
       final usuario = await authRepo.getPerfilUsuario(userCredential.user!.uid);
 
       if (usuario != null) {
         session.setUsuario(usuario);
 
         if (mounted) {
-          // 1. Verificação de Troca de Senha Obrigatória (Primeiro Acesso)
           if (usuario.needsPasswordChange) {
             Navigator.pushReplacement(
               context,
@@ -53,14 +51,12 @@ class _LoginPageState extends State<LoginPage> {
             return;
           }
 
-          // 2. Redirecionamento baseado no nível de acesso
           if (usuario.role == UserRole.superAdmin) {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => const SuperAdminPage()),
             );
           } else {
-            // Admin e Operador seguem para o fluxo principal
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => const SelecaoTalhaoScreen()),
@@ -68,15 +64,32 @@ class _LoginPageState extends State<LoginPage> {
           }
         }
       } else {
-        throw Exception("Perfil de usuário não encontrado no banco de dados.");
+        throw Exception("Perfil não encontrado no banco.");
       }
-    } catch (e) {
+    } on FirebaseAuthException catch (e) {
+      // 🛡️ TRADUÇÃO DOS ERROS DO FIREBASE
+      String mensagemErro = "Ocorreu um erro ao entrar.";
+
+      if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        mensagemErro = "E-mail ou senha incorretos.";
+      } else if (e.code == 'user-disabled') {
+        mensagemErro = "Este usuário foi desativado.";
+      } else if (e.code == 'network-request-failed') {
+        mensagemErro = "Falha na conexão. Verifique sua internet.";
+      } else if (e.code == 'too-many-requests') {
+        mensagemErro = "Muitas tentativas. Tente novamente mais tarde.";
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Erro ao entrar: ${e.toString()}"),
-            backgroundColor: Colors.redAccent,
-          ),
+          SnackBar(content: Text(mensagemErro), backgroundColor: Colors.redAccent),
+        );
+      }
+    } catch (e) {
+      // Erros genéricos (como o Exception do perfil nulo)
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Erro: ${e.toString().replaceAll('Exception:', '')}"), backgroundColor: Colors.redAccent),
         );
       }
     } finally {
@@ -96,7 +109,16 @@ class _LoginPageState extends State<LoginPage> {
       await sl<AuthRepository>().recuperarSenha(_emailController.text.trim());
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Link de recuperação enviado para o e-mail.")),
+          const SnackBar(content: Text("Link de recuperação enviado para o e-mail."), backgroundColor: Colors.green),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      String msg = "Erro ao enviar e-mail.";
+      if (e.code == 'user-not-found') msg = "E-mail não cadastrado.";
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), backgroundColor: Colors.redAccent),
         );
       }
     } catch (e) {
