@@ -10,11 +10,14 @@ class SessionController extends ChangeNotifier {
   String? get companyId => _usuario?.companyId;
   bool get estaLogado => _usuario != null;
 
+  /// Define o usuário manualmente (ex: após o login)
   void setUsuario(UserModel usuario) {
     _usuario = usuario;
     notifyListeners(); 
   }
 
+  /// Limpa os dados da sessão na memória.
+  /// IMPORTANTE: Deve ser chamado durante o processo de logout.
   void limparSessao() {
     _usuario = null;
     notifyListeners();
@@ -34,7 +37,7 @@ class SessionController extends ChangeNotifier {
             .get();
 
         if (doc.exists && doc.data() != null) {
-          // Utiliza o factory fromMap que você definiu no UserModel
+          // Utiliza o factory fromMap definido no seu UserModel
           _usuario = UserModel.fromMap(doc.data()!);
           debugPrint("Sessão inicializada com sucesso: ${_usuario?.name}");
         } else {
