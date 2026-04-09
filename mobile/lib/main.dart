@@ -12,7 +12,7 @@ import 'features/auth/presentation/pages/super_admin_page.dart';
 import 'features/auth/presentation/pages/admin_page.dart';
 import 'features/diagnostico/presentation/pages/selecao_talhao_screen.dart';
 
-import 'features/auth/data/models/auth_model.dart'; // Importe seu UserRole aqui
+import 'features/auth/data/models/auth_model.dart'; 
 import 'features/auth/presentation/controller/session_controller.dart';
 import 'features/diagnostico/data/datasources/database_service.dart';
 import 'infra/repositories/sync_repository.dart';
@@ -69,7 +69,7 @@ void main() async {
       await di.init();
 
       try {
-        await Workmanager().initialize(callbackDispatcher, isInDebugMode: true);
+        await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
         await Workmanager().registerPeriodicTask(
           "sync-task-id",
           "syncTask",
@@ -101,6 +101,7 @@ void _dispararSincronizacaoAutomatica() async {
 }
 
 // --- O WRAPPER DE AUTENTICAÇÃO ---
+// Esta classe é responsável por decidir qual a tela inicial do app
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
@@ -109,27 +110,37 @@ class AuthWrapper extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        // 1. Estado de carregamento
+        // 1. Estado de carregamento inicial (Firebase verificando o token local)
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator(color: Colors.green)),
+          );
         }
 
-        // 2. Se o usuário NÃO está logado ou foi excluído/deslogado externamente
+        // 2. Se NÃO houver usuário no FirebaseAuth, redireciona para Login
         if (!snapshot.hasData || snapshot.data == null) {
           return const LoginPage();
         }
 
-        // 3. Se está logado, garantimos que a sessão (dados do Firestore) existe
-        return FutureBuilder(
-          future: _garantirDadosDaSessao(),
+        // 3. Se houver usuário no Auth, verificamos se os dados dele existem no Firestore
+        // Isso evita o erro de "usuário fantasma"
+        return FutureBuilder<bool>(
+          future: _inicializarSessaoReal(snapshot.data!.uid),
           builder: (context, sessionSnapshot) {
             if (sessionSnapshot.connectionState == ConnectionState.waiting) {
-              return const Scaffold(body: Center(child: CircularProgressIndicator()));
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator(color: Colors.green)),
+              );
+            }
+
+            // Se o Firestore retornar falso (usuário não existe no banco), volta pro login
+            if (sessionSnapshot.data == false) {
+              return const LoginPage();
             }
 
             final session = sl<SessionController>();
             
-            // Redirecionamento baseado na Role carregada na sessão
+            // 4. Redirecionamento por Perfil (Role)
             if (session.usuario?.role == UserRole.superAdmin) {
               return const SuperAdminPage();
             } else {
@@ -141,19 +152,29 @@ class AuthWrapper extends StatelessWidget {
     );
   }
 
-  // Método para carregar os dados do Firestore para o SessionController
-  // Caso o app tenha sido fechado e aberto agora.
-  Future<void> _garantirDadosDaSessao() async {
+  /// Tenta carregar os dados detalhados do usuário do Firestore. 
+  /// Se o documento não existir, desloga o usuário do Firebase.
+  Future<bool> _inicializarSessaoReal(String uid) async {
     final session = sl<SessionController>();
-    if (session.usuario == null) {
-      // Aqui você chama o método do seu repository que busca no Firestore
-      // Exemplo: await sl<AuthRepository>().recuperarUsuarioLogado();
-      try {
-        // Implemente a lógica de busca por UID se ainda não tiver
-        await di.sl<SyncRepository>().sincronizarLeituras(); // Apenas exemplo, use seu AuthRepo
-      } catch (e) {
-        debugPrint("Erro ao recuperar sessão: $e");
+    
+    try {
+      // Se a sessão já estiver na memória, não precisa buscar novamente
+      if (session.usuario != null) return true;
+
+      // Chama o método no controller que criamos para buscar no Firestore
+      await session.inicializarUsuario(); 
+
+      // Se após a tentativa de busca o usuário continuar nulo no controller
+      if (session.usuario == null) {
+        await FirebaseAuth.instance.signOut();
+        return false;
       }
+
+      return true;
+    } catch (e) {
+      debugPrint("Erro fatal na carga da sessão: $e");
+      await FirebaseAuth.instance.signOut();
+      return false;
     }
   }
 }
@@ -168,7 +189,7 @@ class AGDataApp extends StatelessWidget {
       title: 'AGdata',
       theme: AppTheme.lightTheme,
       
-      // O AuthWrapper agora controla a entrada de todas as rotas iniciais
+      // A rota inicial '/' agora é controlada pelo AuthWrapper
       home: const AuthWrapper(), 
 
       routes: {
