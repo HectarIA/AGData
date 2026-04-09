@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Importação essencial para tratar exceções
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../controller/session_controller.dart';
-import '../../../../features/diagnostico/presentation/pages/selecao_talhao_screen.dart';
-import 'super_admin_page.dart';
-import 'change_password_page.dart'; 
-import '../../data/models/auth_model.dart'; 
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -32,52 +28,44 @@ class _LoginPageState extends State<LoginPage> {
       final authRepo = sl<AuthRepository>();
       final session = sl<SessionController>();
 
+      // 1. Faz o login no Firebase Auth
       final userCredential = await authRepo.loginComEmail(
         _emailController.text.trim(),
         _senhaController.text,
       );
 
+      // 2. Busca o perfil no Firestore
       final usuario = await authRepo.getPerfilUsuario(userCredential.user!.uid);
 
       if (usuario != null) {
+        // 3. Alimenta a sessão global
         session.setUsuario(usuario);
-
-        if (mounted) {
-          if (usuario.needsPasswordChange) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const ChangePasswordPage()),
-            );
-            return;
-          }
-
-          if (usuario.role == UserRole.superAdmin) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const SuperAdminPage()),
-            );
-          } else {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const SelecaoTalhaoScreen()),
-            );
-          }
-        }
+        
+        // NOTA: Não fazemos Navigator.push aqui. 
+        // O AuthWrapper no main.dart cuidará do redirecionamento automático
+        // assim que detectar a mudança no FirebaseAuth.instance.authStateChanges()
+        
       } else {
-        throw Exception("Perfil não encontrado no banco.");
+        // Caso o login ocorra mas o perfil não exista no banco (usuário fantasma)
+        await FirebaseAuth.instance.signOut();
+        throw Exception("Perfil de usuário não encontrado no sistema.");
       }
+
     } on FirebaseAuthException catch (e) {
-      // 🛡️ TRADUÇÃO DOS ERROS DO FIREBASE
       String mensagemErro = "Ocorreu um erro ao entrar.";
 
-      if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
+      // Tratamento unificado para segurança (não informar se o erro é no e-mail ou na senha)
+      if (e.code == 'user-not-found' || 
+          e.code == 'wrong-password' || 
+          e.code == 'invalid-credential' || 
+          e.code == 'invalid-email') {
         mensagemErro = "E-mail ou senha incorretos.";
       } else if (e.code == 'user-disabled') {
-        mensagemErro = "Este usuário foi desativado.";
+        mensagemErro = "Esta conta foi desativada pelo administrador.";
       } else if (e.code == 'network-request-failed') {
-        mensagemErro = "Falha na conexão. Verifique sua internet.";
+        mensagemErro = "Sem conexão com a internet.";
       } else if (e.code == 'too-many-requests') {
-        mensagemErro = "Muitas tentativas. Tente novamente mais tarde.";
+        mensagemErro = "Muitas tentativas. Tente novamente em alguns minutos.";
       }
 
       if (mounted) {
@@ -86,10 +74,12 @@ class _LoginPageState extends State<LoginPage> {
         );
       }
     } catch (e) {
-      // Erros genéricos (como o Exception do perfil nulo)
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Erro: ${e.toString().replaceAll('Exception:', '')}"), backgroundColor: Colors.redAccent),
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception:', '')), 
+            backgroundColor: Colors.orangeAccent
+          ),
         );
       }
     } finally {
@@ -98,33 +88,31 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _resetarSenha() async {
-    if (_emailController.text.isEmpty || !_emailController.text.contains('@')) {
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Digite um e-mail válido para recuperar a senha.")),
+        const SnackBar(content: Text("Digite seu e-mail para receber o link de recuperação.")),
       );
       return;
     }
     
     try {
-      await sl<AuthRepository>().recuperarSenha(_emailController.text.trim());
+      await sl<AuthRepository>().recuperarSenha(email);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Link de recuperação enviado para o e-mail."), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text("E-mail de recuperação enviado! Verifique sua caixa de entrada."), 
+            backgroundColor: Colors.green
+          ),
         );
       }
     } on FirebaseAuthException catch (e) {
-      String msg = "Erro ao enviar e-mail.";
-      if (e.code == 'user-not-found') msg = "E-mail não cadastrado.";
+      String msg = "Erro ao processar solicitação.";
+      if (e.code == 'user-not-found') msg = "Este e-mail não está cadastrado.";
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(msg), backgroundColor: Colors.redAccent),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Erro: ${e.toString()}")),
         );
       }
     }
@@ -143,11 +131,7 @@ class _LoginPageState extends State<LoginPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(
-                  Icons.eco,
-                  size: 80,
-                  color: Color(0xFF2E7D32),
-                ),
+                const Icon(Icons.eco, size: 80, color: Color(0xFF2E7D32)),
                 const SizedBox(height: 16),
                 const Text(
                   "HectarIA",
@@ -169,36 +153,32 @@ class _LoginPageState extends State<LoginPage> {
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
                   decoration: InputDecoration(
                     labelText: "E-mail",
-                    hintText: "exemplo@email.com",
+                    hintText: "seu@email.com",
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     prefixIcon: const Icon(Icons.email_outlined),
                   ),
-                  validator: (v) => (v == null || !v.contains('@')) ? "E-mail inválido" : null,
+                  validator: (v) => (v == null || !v.contains('@')) ? "Insira um e-mail válido" : null,
                 ),
                 const SizedBox(height: 20),
 
                 TextFormField(
                   controller: _senhaController,
                   obscureText: !_senhaVisivel,
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => _fazerLogin(),
                   decoration: InputDecoration(
                     labelText: "Senha",
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
-                      icon: Icon(
-                        _senhaVisivel ? Icons.visibility : Icons.visibility_off,
-                        color: Colors.grey,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _senhaVisivel = !_senhaVisivel;
-                        });
-                      },
+                      icon: Icon(_senhaVisivel ? Icons.visibility : Icons.visibility_off),
+                      onPressed: () => setState(() => _senhaVisivel = !_senhaVisivel),
                     ),
                   ),
-                  validator: (v) => v!.length < 6 ? "Senha muito curta" : null,
+                  validator: (v) => (v == null || v.length < 6) ? "A senha deve ter no mínimo 6 caracteres" : null,
                 ),
                 const SizedBox(height: 32),
 
@@ -209,27 +189,17 @@ class _LoginPageState extends State<LoginPage> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2E7D32),
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 2,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     child: _carregando 
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                        )
-                      : const Text(
-                          "ENTRAR NO SISTEMA", 
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text("ENTRAR NO SISTEMA", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                 ),
                 
                 const SizedBox(height: 24),
                 TextButton(
-                  onPressed: _resetarSenha,
+                  onPressed: _carregando ? null : _resetarSenha,
                   child: const Text(
                     "Esqueceu sua senha?",
                     style: TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.w600),
