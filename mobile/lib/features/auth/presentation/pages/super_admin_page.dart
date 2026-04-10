@@ -11,7 +11,7 @@ import '../../data/models/auth_model.dart';
 import '../../data/repositories/auth_repository.dart';
 
 // IMPORT DO SEU CUSTOM DRAWER (Ajuste o caminho conforme sua pasta)
-import '../../presentation/widgets/custom_drawer.dart'; 
+import '../../presentation/widgets/custom_drawer.dart';
 
 class SuperAdminPage extends StatefulWidget {
   const SuperAdminPage({super.key});
@@ -51,24 +51,35 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
     super.dispose();
   }
 
-  String _gerarSenhaProvisoria() => (Random().nextInt(900000) + 100000).toString();
+  String _gerarSenhaProvisoria() =>
+      (Random().nextInt(900000) + 100000).toString();
 
-  Future<void> _enviarWhatsapp(String nome, String email, String senha, String telefone) async {
+  Future<void> _enviarWhatsapp(
+    String nome,
+    String email,
+    String senha,
+    String telefone,
+  ) async {
     final numeroLimpo = telefone.replaceAll(RegExp(r'[^0-9]'), '');
     if (numeroLimpo.length < 10) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Número de telefone inválido.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Número de telefone inválido.')),
+        );
       }
       return;
     }
 
-    final mensagem = "Olá administrador $nome! Seu acesso ao HectarIA está pronto.\n\n"
+    final mensagem =
+        "Olá administrador $nome! Seu acesso ao HectarIA está pronto.\n\n"
         "📧 Login: $email\n"
         "🔑 Senha Provisória: $senha\n\n"
         "Obs: Por segurança, altere sua senha no primeiro acesso.";
-    
-    final url = Uri.parse("https://wa.me/55$numeroLimpo?text=${Uri.encodeComponent(mensagem)}");
-    
+
+    final url = Uri.parse(
+      "https://wa.me/55$numeroLimpo?text=${Uri.encodeComponent(mensagem)}",
+    );
+
     try {
       if (await canLaunchUrl(url)) {
         await launchUrl(url, mode: LaunchMode.externalApplication);
@@ -77,7 +88,9 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao abrir WhatsApp.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro ao abrir WhatsApp.')),
+        );
       }
     }
   }
@@ -90,7 +103,9 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
     final senhaGerada = _gerarSenhaProvisoria();
 
     try {
-      DocumentReference empresaRef = FirebaseFirestore.instance.collection('companies').doc();
+      DocumentReference empresaRef = FirebaseFirestore.instance
+          .collection('companies')
+          .doc();
 
       await _authRepo.cadastrarNovoUsuario(
         nome: _nomeAdminController.text.trim(),
@@ -111,17 +126,20 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
 
       if (mounted) {
         _exibirDialogoSucesso(
-          _nomeAdminController.text.trim(), 
-          _emailAdminController.text.trim(), 
+          _nomeAdminController.text.trim(),
+          _emailAdminController.text.trim(),
           senhaGerada,
-          _phoneAdminController.text
+          _phoneAdminController.text,
         );
         _limparCampos();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Falha no cadastro: $e'), backgroundColor: Colors.red)
+          SnackBar(
+            content: Text('Falha no cadastro: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -129,40 +147,67 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
     }
   }
 
-  void _exibirDialogoSucesso(String nome, String email, String senha, String telefone) {
+  void _exibirDialogoSucesso(
+    String nome,
+    String email,
+    String senha,
+    String telefone,
+  ) {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        title: const Text("🚀 Sucesso!", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+        title: const Text(
+          "🚀 Sucesso!",
+          style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("Administrador e Empresa cadastrados com sucesso no sistema."),
+            const Text(
+              "Administrador e Empresa cadastrados com sucesso no sistema.",
+            ),
             const SizedBox(height: 16),
-            const Text("Senha provisória:", style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text(
+              "Senha provisória:",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: Colors.blueGrey.shade50, borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(
+                color: Colors.blueGrey.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: SelectableText(
-                senha, 
+                senha,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blueAccent, letterSpacing: 4)
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blueAccent,
+                  letterSpacing: 4,
+                ),
               ),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("FECHAR")),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("FECHAR"),
+          ),
           ElevatedButton.icon(
             onPressed: () => _enviarWhatsapp(nome, email, senha, telefone),
             icon: const Icon(Icons.send, size: 18),
             label: const Text("ENVIAR ACESSO"),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
           ),
         ],
       ),
@@ -190,7 +235,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
         elevation: 0,
       ),
       // UTILIZANDO O SEU CUSTOM DRAWER AQUI
-      drawer: const CustomDrawer(), 
+      drawer: const CustomDrawer(),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -212,48 +257,94 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('DADOS DA EMPRESA', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green, letterSpacing: 1.2)),
+          const Text(
+            'DADOS DA EMPRESA',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.green,
+              letterSpacing: 1.2,
+            ),
+          ),
           const SizedBox(height: 12),
           TextFormField(
             controller: _nomeEmpresaController,
-            decoration: const InputDecoration(labelText: 'Nome da Empresa', border: OutlineInputBorder(), prefixIcon: Icon(Icons.business)),
-            validator: (v) => (v == null || v.isEmpty) ? 'Informe o nome da empresa' : null,
+            decoration: const InputDecoration(
+              labelText: 'Nome da Empresa',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.business),
+            ),
+            validator: (v) =>
+                (v == null || v.isEmpty) ? 'Informe o nome da empresa' : null,
           ),
           const SizedBox(height: 10),
           TextFormField(
             controller: _cnpjController,
             inputFormatters: [_cnpjFormatter],
-            decoration: const InputDecoration(labelText: 'CNPJ', border: OutlineInputBorder(), prefixIcon: Icon(Icons.assignment_ind)),
+            decoration: const InputDecoration(
+              labelText: 'CNPJ',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.assignment_ind),
+            ),
             keyboardType: TextInputType.number,
           ),
           const Divider(height: 40, thickness: 1),
-          const Text('ADMINISTRADOR RESPONSÁVEL', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green, letterSpacing: 1.2)),
+          const Text(
+            'ADMINISTRADOR RESPONSÁVEL',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.green,
+              letterSpacing: 1.2,
+            ),
+          ),
           const SizedBox(height: 12),
           TextFormField(
             controller: _nomeAdminController,
-            decoration: const InputDecoration(labelText: 'Nome Completo', border: OutlineInputBorder(), prefixIcon: Icon(Icons.person_outline)),
-            validator: (v) => (v == null || v.isEmpty) ? 'Informe o nome do administrador' : null,
+            decoration: const InputDecoration(
+              labelText: 'Nome Completo',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.person_outline),
+            ),
+            validator: (v) => (v == null || v.isEmpty)
+                ? 'Informe o nome do administrador'
+                : null,
           ),
           const SizedBox(height: 10),
           TextFormField(
             controller: _emailAdminController,
-            decoration: const InputDecoration(labelText: 'E-mail de Login', border: OutlineInputBorder(), prefixIcon: Icon(Icons.alternate_email)),
+            decoration: const InputDecoration(
+              labelText: 'E-mail de Login',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.alternate_email),
+            ),
             keyboardType: TextInputType.emailAddress,
-            validator: (v) => (v == null || !v.contains('@')) ? 'E-mail inválido' : null,
+            validator: (v) =>
+                (v == null || !v.contains('@')) ? 'E-mail inválido' : null,
           ),
           const SizedBox(height: 10),
           TextFormField(
             controller: _phoneAdminController,
             inputFormatters: [_phoneFormatter],
-            decoration: const InputDecoration(labelText: 'WhatsApp', border: OutlineInputBorder(), hintText: '(00) 00000-0000', prefixIcon: Icon(Icons.phone_iphone)),
+            decoration: const InputDecoration(
+              labelText: 'WhatsApp',
+              border: OutlineInputBorder(),
+              hintText: '(00) 00000-0000',
+              prefixIcon: Icon(Icons.phone_iphone),
+            ),
             keyboardType: TextInputType.phone,
-            validator: (v) => (v == null || v.isEmpty) ? 'Telefone obrigatório' : null,
+            validator: (v) =>
+                (v == null || v.isEmpty) ? 'Telefone obrigatório' : null,
           ),
           const SizedBox(height: 10),
           TextFormField(
             controller: _cpfAdminController,
             inputFormatters: [_cpfFormatter],
-            decoration: const InputDecoration(labelText: 'CPF', border: OutlineInputBorder(), prefixIcon: Icon(Icons.badge_outlined)),
+            decoration: const InputDecoration(
+              labelText: 'CPF',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.badge_outlined),
+            ),
             keyboardType: TextInputType.number,
           ),
           const SizedBox(height: 24),
@@ -263,11 +354,26 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
               onPressed: _carregando ? null : _cadastrarTudo,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2E7D32),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
               child: _carregando
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Text('CADASTRAR EMPRESA E ADMIN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text(
+                      'CADASTRAR EMPRESA E ADMIN',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
           ),
         ],
@@ -280,20 +386,31 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
       children: [
         Icon(Icons.list_alt, color: Colors.green),
         SizedBox(width: 8),
-        Text('EMPRESAS PARCEIRAS', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        Text(
+          'EMPRESAS PARCEIRAS',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
       ],
     );
   }
 
   Widget _buildCompanyStream() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('companies').orderBy('createdAt', descending: true).snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('companies')
+          .orderBy('createdAt', descending: true)
+          .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) return const Text('Erro ao carregar empresas');
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        
+        if (!snapshot.hasData)
+          return const Center(child: CircularProgressIndicator());
+
         final docs = snapshot.data!.docs;
-        if (docs.isEmpty) return const Padding(padding: EdgeInsets.all(20), child: Text("Nenhuma empresa cadastrada."));
+        if (docs.isEmpty)
+          return const Padding(
+            padding: EdgeInsets.all(20),
+            child: Text("Nenhuma empresa cadastrada."),
+          );
 
         return ListView.builder(
           shrinkWrap: true,
@@ -307,8 +424,14 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
               elevation: 2,
               margin: const EdgeInsets.symmetric(vertical: 6),
               child: ListTile(
-                leading: const CircleAvatar(backgroundColor: Color(0xFFE8F5E9), child: Icon(Icons.agriculture, color: Colors.green)),
-                title: Text(company['name'] ?? 'Sem nome', style: const TextStyle(fontWeight: FontWeight.bold)),
+                leading: const CircleAvatar(
+                  backgroundColor: Color(0xFFE8F5E9),
+                  child: Icon(Icons.agriculture, color: Colors.green),
+                ),
+                title: Text(
+                  company['name'] ?? 'Sem nome',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -334,10 +457,35 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
           .get(),
       builder: (context, userSnap) {
         if (userSnap.hasData && userSnap.data!.docs.isNotEmpty) {
-          final adminData = userSnap.data!.docs.first.data() as Map<String, dynamic>;
-          return Text(
-            'Adm: ${adminData['name']} (${adminData['phone'] ?? 'S/ Tel'})',
-            style: const TextStyle(fontSize: 12, color: Colors.blueGrey, fontWeight: FontWeight.w600),
+          final adminData =
+              userSnap.data!.docs.first.data() as Map<String, dynamic>;
+
+          // Captura dos dados
+          final String nome = adminData['name'] ?? 'N/A';
+          final String email = adminData['email'] ?? 'N/A';
+          final String phone = adminData['phone'] ?? 'S/ Tel';
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 4),
+              Text(
+                'Adm: $nome',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.blueGrey,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                'Email: $email',
+                style: const TextStyle(fontSize: 12, color: Colors.blueGrey),
+              ),
+              Text(
+                'Whats: $phone',
+                style: const TextStyle(fontSize: 12, color: Colors.blueGrey),
+              ),
+            ],
           );
         }
         return const SizedBox.shrink();
