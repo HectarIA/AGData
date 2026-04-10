@@ -29,6 +29,7 @@ class CustomDrawer extends StatelessWidget {
       child: Column(
         children: [
           UserAccountsDrawerHeader(
+            margin: EdgeInsets.zero, // Remove margens extras que podem causar desalinhamento
             decoration: BoxDecoration(
               color: isSuperAdmin ? const Color(0xFF1B5E20) : const Color(0xFF2E7D32),
             ),
@@ -40,27 +41,42 @@ class CustomDrawer extends StatelessWidget {
                 size: 40,
               ),
             ),
-            accountName: Column(
+            // BUG FIX: Removi a Column complexa do accountName que causava o overflow.
+            // Agora o nome e a empresa são tratados de forma que o Header gerencie o espaço.
+            accountName: Text(
+              user?.name ?? 'Usuário',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            accountEmail: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(user?.name ?? 'Usuário', style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(user?.email ?? ''),
                 if (!isSuperAdmin && user?.companyId != null)
                   FutureBuilder<DocumentSnapshot>(
-                    future: FirebaseFirestore.instance.collection('companies').doc(user!.companyId).get(),
+                    future: FirebaseFirestore.instance
+                        .collection('companies')
+                        .doc(user!.companyId)
+                        .get(),
                     builder: (context, snapshot) {
-                      String empresa = snapshot.hasData && snapshot.data!.exists 
+                      String empresa = snapshot.hasData && snapshot.data!.exists
                           ? (snapshot.data!.data() as Map<String, dynamic>)['name'] ?? 'Empresa'
                           : "...";
-                      return Text(empresa, style: const TextStyle(fontSize: 12, color: Colors.white70));
+                      return Text(
+                        empresa,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.white70,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
                     },
                   ),
               ],
             ),
-            accountEmail: Text(user?.email ?? ''),
           ),
 
-          // OPÇÃO DE SINCRONIZAÇÃO (Apenas se passar a função, ex: na tela inicial)
+          // OPÇÃO DE SINCRONIZAÇÃO
           if (onSync != null)
             ListTile(
               leading: isSyncing
@@ -78,7 +94,8 @@ class CustomDrawer extends StatelessWidget {
             const Divider(),
             const Padding(
               padding: EdgeInsets.only(left: 16, top: 8, bottom: 4),
-              child: Text("ADMINISTRAÇÃO", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 12)),
+              child: Text("ADMINISTRAÇÃO", 
+                style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 12)),
             ),
             ListTile(
               leading: Icon(isSuperAdmin ? Icons.domain : Icons.people, color: Colors.blue),
@@ -121,7 +138,7 @@ class CustomDrawer extends StatelessWidget {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
-              Navigator.pop(context); // fecha o dialog
+              Navigator.pop(context);
               await sl<AuthRepository>().logout();
               if (context.mounted) {
                 Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
