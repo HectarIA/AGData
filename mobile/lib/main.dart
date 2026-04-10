@@ -11,6 +11,8 @@ import 'features/auth/presentation/pages/login_page.dart';
 import 'features/auth/presentation/pages/super_admin_page.dart';
 import 'features/auth/presentation/pages/admin_page.dart';
 import 'features/diagnostico/presentation/pages/selecao_talhao_screen.dart';
+import 'features/auth/presentation/pages/change_password_page.dart';
+
 
 import 'features/auth/data/models/auth_model.dart'; 
 import 'features/auth/presentation/controller/session_controller.dart';
@@ -102,6 +104,7 @@ void _dispararSincronizacaoAutomatica() async {
 
 // --- O WRAPPER DE AUTENTICAÇÃO ---
 // Esta classe é responsável por decidir qual a tela inicial do app
+// --- O WRAPPER DE AUTENTICAÇÃO ATUALIZADO ---
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
@@ -110,20 +113,19 @@ class AuthWrapper extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        // 1. Estado de carregamento inicial (Firebase verificando o token local)
+        // 1. Estado de carregamento inicial
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator(color: Colors.green)),
           );
         }
 
-        // 2. Se NÃO houver usuário no FirebaseAuth, redireciona para Login
+        // 2. Se NÃO houver usuário no FirebaseAuth
         if (!snapshot.hasData || snapshot.data == null) {
           return const LoginPage();
         }
 
-        // 3. Se houver usuário no Auth, verificamos se os dados dele existem no Firestore
-        // Isso evita o erro de "usuário fantasma"
+        // 3. Verificamos os dados no Firestore
         return FutureBuilder<bool>(
           future: _inicializarSessaoReal(snapshot.data!.uid),
           builder: (context, sessionSnapshot) {
@@ -133,16 +135,27 @@ class AuthWrapper extends StatelessWidget {
               );
             }
 
-            // Se o Firestore retornar falso (usuário não existe no banco), volta pro login
             if (sessionSnapshot.data == false) {
               return const LoginPage();
             }
 
             final session = sl<SessionController>();
-            
-            // 4. Redirecionamento por Perfil (Role)
-            if (session.usuario?.role == UserRole.superAdmin) {
+            final usuario = session.usuario; // Pegamos o usuário da sessão
+
+            // ---------------------------------------------------------
+            // 4. NOVA LÓGICA: Verificação de Senha Obrigatória
+            // ---------------------------------------------------------
+            // Se o usuário precisa trocar a senha, ele não passa daqui, 
+            // independente da Role (SuperAdmin ou Admin).
+            if (usuario != null && usuario.needsPasswordChange) {
+              return const ChangePasswordPage();
+            }
+
+            // 5. Redirecionamento por Perfil (Role) - Apenas se não precisar trocar senha
+            if (usuario?.role == UserRole.superAdmin) {
               return const SuperAdminPage();
+            } else if (usuario?.role == UserRole.admin) {
+              return const AdminPage();
             } else {
               return const SelecaoTalhaoScreen();
             }
@@ -152,24 +165,16 @@ class AuthWrapper extends StatelessWidget {
     );
   }
 
-  /// Tenta carregar os dados detalhados do usuário do Firestore. 
-  /// Se o documento não existir, desloga o usuário do Firebase.
+  // O método _inicializarSessaoReal permanece o mesmo que você já tem...
   Future<bool> _inicializarSessaoReal(String uid) async {
     final session = sl<SessionController>();
-    
     try {
-      // Se a sessão já estiver na memória, não precisa buscar novamente
       if (session.usuario != null) return true;
-
-      // Chama o método no controller que criamos para buscar no Firestore
       await session.inicializarUsuario(); 
-
-      // Se após a tentativa de busca o usuário continuar nulo no controller
       if (session.usuario == null) {
         await FirebaseAuth.instance.signOut();
         return false;
       }
-
       return true;
     } catch (e) {
       debugPrint("Erro fatal na carga da sessão: $e");
