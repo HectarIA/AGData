@@ -89,6 +89,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 style: TextStyle(color: Colors.grey),
               ),
               const SizedBox(height: 30),
+
               TextFormField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
@@ -108,17 +109,27 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2E7D32),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
                       : const Text(
                           "ENVIAR E-MAIL DE RECUPERAÇÃO",
                           style: TextStyle(
-                              color: Colors.white, fontWeight: FontWeight.bold),
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                 ),
               ),
+              const SizedBox(height: 20),
+              const Text(
+                "A recuperação de senha requer conexão com a internet. Certifique-se de estar conectado para receber o e-mail.",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 30),
             ],
           ),
         ),
