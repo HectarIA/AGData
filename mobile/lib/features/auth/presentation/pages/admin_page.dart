@@ -6,7 +6,6 @@ import 'package:url_launcher/url_launcher.dart';
 // Imports baseados na sua estrutura de pastas
 import '../../../../core/di/injection_container.dart';
 import '../../data/models/auth_model.dart';
-import '../../data/repositories/auth_repository.dart';
 import '../controller/session_controller.dart';
 import '../widgets/custom_drawer.dart'; // Import do seu novo Drawer
 import 'add_user_page.dart';
@@ -22,17 +21,6 @@ class _AdminPageState extends State<AdminPage> {
   final _session = sl<SessionController>();
   final _firestore = FirebaseFirestore.instance;
 
-  void _logout() async {
-    try {
-      await sl<AuthRepository>().logout();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Erro ao sair: $e")),
-        );
-      }
-    }
-  }
 
   Future<void> _enviarAcessoWhatsApp(UserModel user) async {
     final numeroLimpo = user.phone?.replaceAll(RegExp(r'[^0-9]'), '') ?? '';
@@ -99,13 +87,6 @@ class _AdminPageState extends State<AdminPage> {
         title: const Text("Gestão de Operadores"),
         backgroundColor: const Color(0xFF2E7D32),
         foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
-            tooltip: "Sair",
-          ),
-        ],
       ),
       // Adicionado o Drawer que você criou
       drawer: const CustomDrawer(),
