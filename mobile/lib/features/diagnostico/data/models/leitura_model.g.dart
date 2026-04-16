@@ -22,39 +22,49 @@ const LeituraModelSchema = CollectionSchema(
       name: r'caminhoImagem',
       type: IsarType.string,
     ),
-    r'confianca': PropertySchema(
+    r'companyId': PropertySchema(
       id: 1,
+      name: r'companyId',
+      type: IsarType.string,
+    ),
+    r'confianca': PropertySchema(
+      id: 2,
       name: r'confianca',
       type: IsarType.double,
     ),
     r'dataHora': PropertySchema(
-      id: 2,
+      id: 3,
       name: r'dataHora',
       type: IsarType.dateTime,
     ),
     r'latitude': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'latitude',
       type: IsarType.double,
     ),
     r'longitude': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'longitude',
       type: IsarType.double,
     ),
     r'resultadoIA': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'resultadoIA',
       type: IsarType.string,
     ),
     r'sincronizado': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'sincronizado',
       type: IsarType.bool,
     ),
     r'talhao': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'talhao',
+      type: IsarType.string,
+    ),
+    r'userId': PropertySchema(
+      id: 9,
+      name: r'userId',
       type: IsarType.string,
     )
   },
@@ -93,8 +103,20 @@ int _leituraModelEstimateSize(
 ) {
   var bytesCount = offsets.last;
   bytesCount += 3 + object.caminhoImagem.length * 3;
+  {
+    final value = object.companyId;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
   bytesCount += 3 + object.resultadoIA.length * 3;
   bytesCount += 3 + object.talhao.length * 3;
+  {
+    final value = object.userId;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
   return bytesCount;
 }
 
@@ -105,13 +127,15 @@ void _leituraModelSerialize(
   Map<Type, List<int>> allOffsets,
 ) {
   writer.writeString(offsets[0], object.caminhoImagem);
-  writer.writeDouble(offsets[1], object.confianca);
-  writer.writeDateTime(offsets[2], object.dataHora);
-  writer.writeDouble(offsets[3], object.latitude);
-  writer.writeDouble(offsets[4], object.longitude);
-  writer.writeString(offsets[5], object.resultadoIA);
-  writer.writeBool(offsets[6], object.sincronizado);
-  writer.writeString(offsets[7], object.talhao);
+  writer.writeString(offsets[1], object.companyId);
+  writer.writeDouble(offsets[2], object.confianca);
+  writer.writeDateTime(offsets[3], object.dataHora);
+  writer.writeDouble(offsets[4], object.latitude);
+  writer.writeDouble(offsets[5], object.longitude);
+  writer.writeString(offsets[6], object.resultadoIA);
+  writer.writeBool(offsets[7], object.sincronizado);
+  writer.writeString(offsets[8], object.talhao);
+  writer.writeString(offsets[9], object.userId);
 }
 
 LeituraModel _leituraModelDeserialize(
@@ -122,14 +146,16 @@ LeituraModel _leituraModelDeserialize(
 ) {
   final object = LeituraModel();
   object.caminhoImagem = reader.readString(offsets[0]);
-  object.confianca = reader.readDouble(offsets[1]);
-  object.dataHora = reader.readDateTime(offsets[2]);
+  object.companyId = reader.readStringOrNull(offsets[1]);
+  object.confianca = reader.readDouble(offsets[2]);
+  object.dataHora = reader.readDateTime(offsets[3]);
   object.id = id;
-  object.latitude = reader.readDouble(offsets[3]);
-  object.longitude = reader.readDouble(offsets[4]);
-  object.resultadoIA = reader.readString(offsets[5]);
-  object.sincronizado = reader.readBool(offsets[6]);
-  object.talhao = reader.readString(offsets[7]);
+  object.latitude = reader.readDouble(offsets[4]);
+  object.longitude = reader.readDouble(offsets[5]);
+  object.resultadoIA = reader.readString(offsets[6]);
+  object.sincronizado = reader.readBool(offsets[7]);
+  object.talhao = reader.readString(offsets[8]);
+  object.userId = reader.readStringOrNull(offsets[9]);
   return object;
 }
 
@@ -143,19 +169,23 @@ P _leituraModelDeserializeProp<P>(
     case 0:
       return (reader.readString(offset)) as P;
     case 1:
-      return (reader.readDouble(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 2:
-      return (reader.readDateTime(offset)) as P;
-    case 3:
       return (reader.readDouble(offset)) as P;
+    case 3:
+      return (reader.readDateTime(offset)) as P;
     case 4:
       return (reader.readDouble(offset)) as P;
     case 5:
-      return (reader.readString(offset)) as P;
+      return (reader.readDouble(offset)) as P;
     case 6:
-      return (reader.readBool(offset)) as P;
-    case 7:
       return (reader.readString(offset)) as P;
+    case 7:
+      return (reader.readBool(offset)) as P;
+    case 8:
+      return (reader.readString(offset)) as P;
+    case 9:
+      return (reader.readStringOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
@@ -439,6 +469,160 @@ extension LeituraModelQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.greaterThan(
         property: r'caminhoImagem',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      companyIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'companyId',
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      companyIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'companyId',
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      companyIdEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'companyId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      companyIdGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'companyId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      companyIdLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'companyId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      companyIdBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'companyId',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      companyIdStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'companyId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      companyIdEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'companyId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      companyIdContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'companyId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      companyIdMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'companyId',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      companyIdIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'companyId',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      companyIdIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'companyId',
         value: '',
       ));
     });
@@ -1031,6 +1215,159 @@ extension LeituraModelQueryFilter
       ));
     });
   }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      userIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'userId',
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      userIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'userId',
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition> userIdEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'userId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      userIdGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'userId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      userIdLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'userId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition> userIdBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'userId',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      userIdStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'userId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      userIdEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'userId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      userIdContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'userId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition> userIdMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'userId',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      userIdIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'userId',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      userIdIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'userId',
+        value: '',
+      ));
+    });
+  }
 }
 
 extension LeituraModelQueryObject
@@ -1051,6 +1388,18 @@ extension LeituraModelQuerySortBy
       sortByCaminhoImagemDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'caminhoImagem', Sort.desc);
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterSortBy> sortByCompanyId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'companyId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterSortBy> sortByCompanyIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'companyId', Sort.desc);
     });
   }
 
@@ -1139,6 +1488,18 @@ extension LeituraModelQuerySortBy
       return query.addSortBy(r'talhao', Sort.desc);
     });
   }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterSortBy> sortByUserId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'userId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterSortBy> sortByUserIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'userId', Sort.desc);
+    });
+  }
 }
 
 extension LeituraModelQuerySortThenBy
@@ -1153,6 +1514,18 @@ extension LeituraModelQuerySortThenBy
       thenByCaminhoImagemDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'caminhoImagem', Sort.desc);
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterSortBy> thenByCompanyId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'companyId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterSortBy> thenByCompanyIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'companyId', Sort.desc);
     });
   }
 
@@ -1253,6 +1626,18 @@ extension LeituraModelQuerySortThenBy
       return query.addSortBy(r'talhao', Sort.desc);
     });
   }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterSortBy> thenByUserId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'userId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterSortBy> thenByUserIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'userId', Sort.desc);
+    });
+  }
 }
 
 extension LeituraModelQueryWhereDistinct
@@ -1262,6 +1647,13 @@ extension LeituraModelQueryWhereDistinct
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'caminhoImagem',
           caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QDistinct> distinctByCompanyId(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'companyId', caseSensitive: caseSensitive);
     });
   }
 
@@ -1308,6 +1700,13 @@ extension LeituraModelQueryWhereDistinct
       return query.addDistinctBy(r'talhao', caseSensitive: caseSensitive);
     });
   }
+
+  QueryBuilder<LeituraModel, LeituraModel, QDistinct> distinctByUserId(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'userId', caseSensitive: caseSensitive);
+    });
+  }
 }
 
 extension LeituraModelQueryProperty
@@ -1321,6 +1720,12 @@ extension LeituraModelQueryProperty
   QueryBuilder<LeituraModel, String, QQueryOperations> caminhoImagemProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'caminhoImagem');
+    });
+  }
+
+  QueryBuilder<LeituraModel, String?, QQueryOperations> companyIdProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'companyId');
     });
   }
 
@@ -1363,6 +1768,12 @@ extension LeituraModelQueryProperty
   QueryBuilder<LeituraModel, String, QQueryOperations> talhaoProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'talhao');
+    });
+  }
+
+  QueryBuilder<LeituraModel, String?, QQueryOperations> userIdProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'userId');
     });
   }
 }

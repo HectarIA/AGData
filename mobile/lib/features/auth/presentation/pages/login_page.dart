@@ -3,7 +3,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../controller/session_controller.dart';
-import '../pages/forgot_password_page.dart'; 
+import '../pages/forgot_password_page.dart';
+import '../pages/super_admin_page.dart';
+import '../pages/change_password_page.dart';
+import '../../../../features/diagnostico/presentation/pages/selecao_talhao_screen.dart';
+import '../../data/models/auth_model.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -29,19 +33,37 @@ class _LoginPageState extends State<LoginPage> {
       final authRepo = sl<AuthRepository>();
       final session = sl<SessionController>();
 
-      final userCredential = await authRepo.loginComEmail(
+      final usuario = await authRepo.loginComEmail(
         _emailController.text.trim(),
         _senhaController.text,
       );
 
-      final usuario = await authRepo.getPerfilUsuario(userCredential.user!.uid);
-
       if (usuario != null) {
         session.setUsuario(usuario);
-        // O AuthWrapper cuidará do redirecionamento
+
+        if (mounted) {
+          if (usuario.needsPasswordChange) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const ChangePasswordPage()),
+            );
+            return;
+          }
+
+          if (usuario.role == UserRole.superAdmin) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const SuperAdminPage()),
+            );
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const SelecaoTalhaoScreen()),
+            );
+          }
+        }
       } else {
-        await FirebaseAuth.instance.signOut();
-        throw Exception("Perfil de usuário não encontrado no sistema.");
+        throw Exception("Não foi possível carregar os dados do usuário.");
       }
 
     } on FirebaseAuthException catch (e) {
@@ -54,8 +76,8 @@ class _LoginPageState extends State<LoginPage> {
         mensagemErro = "E-mail ou senha incorretos.";
       } else if (e.code == 'user-disabled') {
         mensagemErro = "Esta conta foi desativada pelo administrador.";
-      } else if (e.code == 'network-request-failed') {
-        mensagemErro = "Sem conexão com a internet.";
+      } else if (e.code == 'network-request-failed' || e.code == 'channel-error') {
+        mensagemErro = "Sem conexão. Login offline não disponível para este usuário.";
       } else if (e.code == 'too-many-requests') {
         mensagemErro = "Muitas tentativas. Tente novamente em alguns minutos.";
       }
@@ -153,13 +175,16 @@ class _LoginPageState extends State<LoginPage> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     child: _carregando 
-                      ? const CircularProgressIndicator(color: Colors.white)
+                      ? const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
                       : const Text("ENTRAR NO SISTEMA", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                 ),
                 
                 const SizedBox(height: 24),
-                // REDIRECIONAMENTO PARA NOVA PÁGINA
                 TextButton(
                   onPressed: _carregando ? null : () {
                     Navigator.push(

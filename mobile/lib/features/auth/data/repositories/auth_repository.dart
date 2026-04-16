@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
+import 'package:isar/isar.dart';
 import '../models/auth_model.dart';
 import '../../presentation/controller/session_controller.dart';
 import 'package:mobile/core/di/injection_container.dart';
@@ -9,26 +10,75 @@ import 'package:mobile/core/di/injection_container.dart';
 class AuthRepository {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final Isar _isar = sl<Isar>(); 
 
-  Future<UserCredential> loginComEmail(String email, String senha) async {
-    return await _auth.signInWithEmailAndPassword(email: email, password: senha);
+  /// Realiza o login retornando o UserModel. 
+  /// Se houver internet, autentica no Firebase. Se não, busca no Isar.
+  Future<UserModel?> loginComEmail(String email, String senha) async {
+    try {
+      // 1. Tenta autenticação online
+      final credential = await _auth.signInWithEmailAndPassword(
+        email: email.trim(), 
+        password: senha
+      );
+      
+      // 2. Busca o perfil completo no Firestore
+      final userModel = await getPerfilUsuario(credential.user!.uid);
+      
+      if (userModel != null) {
+        // 3. Sucesso: Cache local no Isar para permitir logins offline futuros
+        await _isar.writeTxn(() async {
+          await _isar.userModels.put(userModel);
+        });
+        
+        sl<SessionController>().setUsuario(userModel);
+        return userModel;
+      }
+      return null;
+    } on FirebaseAuthException catch (e) {
+      // 📶 TRATAMENTO PARA LOGIN OFFLINE
+      // Verificamos se é erro de rede ou falha de canal (comum em emuladores/offline)
+      if (e.code == 'network-request-failed' || e.code == 'channel-error') {
+        final usuarioLocal = await _isar.userModels.filter().emailEqualTo(email).findFirst();
+        
+        if (usuarioLocal != null) {
+          // Concede acesso com base no banco local
+          sl<SessionController>().setUsuario(usuarioLocal);
+          return usuarioLocal; 
+        }
+      }
+      // Se não for erro de rede ou não achar localmente, repassa o erro (ex: senha errada)
+      rethrow;
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<UserModel?> recuperarUsuarioLogado() async {
     final User? firebaseUser = _auth.currentUser;
+    
     if (firebaseUser != null) {
       try {
         final doc = await _firestore.collection('users').doc(firebaseUser.uid).get();
         if (doc.exists && doc.data() != null) {
           final userModel = UserModel.fromMap(doc.data()!);
+          
+          await _isar.writeTxn(() => _isar.userModels.put(userModel));
+          
           sl<SessionController>().setUsuario(userModel);
           return userModel;
         }
       } catch (e) {
-        debugPrint("Erro ao recuperar dados do Firestore: $e");
-        return null;
+        debugPrint("Erro Firestore, tentando Isar: $e");
       }
     }
+
+    final usuarioLocal = await _isar.userModels.where().findFirst();
+    if (usuarioLocal != null) {
+      sl<SessionController>().setUsuario(usuarioLocal);
+      return usuarioLocal;
+    }
+    
     return null;
   }
 
@@ -39,6 +89,12 @@ class AuthRepository {
       await _firestore.collection('users').doc(user.uid).update({
         'needsPasswordChange': false,
       });
+      
+      final local = await _isar.userModels.filter().uidEqualTo(user.uid).findFirst();
+      if (local != null) {
+        local.needsPasswordChange = false;
+        await _isar.writeTxn(() => _isar.userModels.put(local));
+      }
     }
   }
 
@@ -63,7 +119,8 @@ class AuthRepository {
         password: senha,
       );
       final String uid = credential.user!.uid;
-      await _firestore.collection('users').doc(uid).set({
+      
+      final userData = {
         'uid': uid,
         'name': nome,
         'email': email,
@@ -73,7 +130,9 @@ class AuthRepository {
         'companyId': companyId,
         'needsPasswordChange': true,
         'createdAt': FieldValue.serverTimestamp(),
-      });
+      };
+
+      await _firestore.collection('users').doc(uid).set(userData);
       await secondaryApp.delete();
     } catch (e) {
       rethrow;
@@ -85,17 +144,25 @@ class AuthRepository {
   }
 
   Future<UserModel?> getPerfilUsuario(String uid) async {
-    final doc = await _firestore.collection('users').doc(uid).get();
-    if (doc.exists) return UserModel.fromMap(doc.data()!);
+    try {
+      final doc = await _firestore.collection('users').doc(uid).get();
+      if (doc.exists) {
+        final user = UserModel.fromMap(doc.data()!);
+        return user;
+      }
+    } catch (e) {
+      return await _isar.userModels.filter().uidEqualTo(uid).findFirst();
+    }
     return null;
   }
 
-  /// Logout atualizado para garantir limpeza total
   Future<void> logout() async {
     try {
-      // Limpa a sessão no controller primeiro para atualizar a UI imediatamente
       sl<SessionController>().limparSessao();
-      // Desloga do Firebase
+      
+      // Limpa os dados do usuário do Isar no logout para garantir privacidade
+      await _isar.writeTxn(() => _isar.userModels.clear());
+      
       await _auth.signOut();
     } catch (e) {
       debugPrint("Erro durante o logout: $e");

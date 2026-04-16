@@ -1,16 +1,30 @@
+import 'package:isar/isar.dart';
+
+part 'auth_model.g.dart';
+
 enum UserRole { superAdmin, admin, operador }
 
+@collection
 class UserModel {
-  final String uid;
-  final String? cpf;
-  final String? phone; // 📱 Campo adicionado
-  final String email;
-  final String companyId;
-  final String name;
-  final UserRole role;
-  final bool needsPasswordChange;
+  Id id = Isar.autoIncrement;
 
-  UserModel({
+  @Index(unique: true, replace: true)
+  late String uid;
+  
+  String? cpf;
+  String? phone; 
+  late String email;
+  late String companyId;
+  late String name;
+
+  @enumerated
+  late UserRole role;
+  
+  late bool needsPasswordChange;
+  
+  UserModel();
+
+  UserModel.create({
     required this.uid,
     this.cpf,
     this.phone,
@@ -21,7 +35,6 @@ class UserModel {
     this.needsPasswordChange = false,
   });
 
-  // Método para criar uma cópia alterando apenas campos específicos
   UserModel copyWith({
     String? uid,
     String? cpf,
@@ -32,7 +45,7 @@ class UserModel {
     UserRole? role,
     bool? needsPasswordChange,
   }) {
-    return UserModel(
+    return UserModel.create(
       uid: uid ?? this.uid,
       cpf: cpf ?? this.cpf,
       phone: phone ?? this.phone,
@@ -44,7 +57,6 @@ class UserModel {
     );
   }
 
-  // Converte o objeto para um Map (para salvar no Firestore)
   Map<String, dynamic> toMap() {
     return {
       'uid': uid,
@@ -58,9 +70,8 @@ class UserModel {
     };
   }
 
-  // Cria um objeto a partir de um Map (vindo do Firestore)
   factory UserModel.fromMap(Map<String, dynamic> map) {
-    return UserModel(
+    return UserModel.create(
       uid: map['uid'] ?? '',
       cpf: map['cpf'],
       phone: map['phone'],

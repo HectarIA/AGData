@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
-
-// Imports baseados na sua estrutura de pastas
 import '../../../../core/di/injection_container.dart';
 import '../../data/models/auth_model.dart';
 import '../controller/session_controller.dart';
-import '../widgets/custom_drawer.dart'; // Import do seu novo Drawer
+import '../widgets/custom_drawer.dart'; 
 import 'add_user_page.dart';
 
 class AdminPage extends StatefulWidget {
