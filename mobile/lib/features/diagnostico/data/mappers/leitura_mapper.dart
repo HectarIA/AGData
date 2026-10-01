@@ -12,6 +12,7 @@ extension LeituraMapper on LeituraModel {
       latitude: latitude,
       longitude: longitude,
       talhao: talhao,
+      observacao: observacao,
       sincronizado: sincronizado,
     );
   }

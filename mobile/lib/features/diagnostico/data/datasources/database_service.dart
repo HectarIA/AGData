@@ -29,6 +29,20 @@ class DatabaseService {
     return await isar.leituraModels.where().sortByDataHoraDesc().findAll();
   }
 
+  Future<void> deletarLeitura(int id) async {
+    await isar.writeTxn(() async {
+      await isar.leituraModels.delete(id);
+    });
+  }
+
+  /// Quantidade de leituras ainda não sincronizadas com a nuvem.
+  Future<int> contarLeiturasPendentes() async {
+    return await isar.leituraModels
+        .filter()
+        .sincronizadoEqualTo(false)
+        .count();
+  }
+
   // --- FUNÇÕES PARA TALHÕES (ÁREAS DA FAZENDA) ---
 
   Future<void> guardarTalhao(TalhaoModel talhao) async {

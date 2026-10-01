@@ -20,6 +20,9 @@ class LeituraModel {
 
   String talhao = "";
 
+  /// Observação do técnico (texto livre, opcional) para o relatório.
+  String observacao = "";
+
   @Index()
   bool sincronizado = false;
 
@@ -32,6 +35,7 @@ class LeituraModel {
       'latitude': latitude,
       'longitude': longitude,
       'talhao': talhao,
+      'observacao': observacao,
     };
   }
 }

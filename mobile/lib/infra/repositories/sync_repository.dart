@@ -52,6 +52,7 @@ class SyncRepository {
           'data_local': leitura.dataHora.toIso8601String(),
           'latitude': leitura.latitude,
           'longitude': leitura.longitude,
+          'observacao': leitura.observacao,
           'sincronizado_em': FieldValue.serverTimestamp(),
           'audit': {
             'app_version': '1.0.0+1',

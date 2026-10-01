@@ -11,7 +11,9 @@ list(APPEND FLUTTER_PLUGIN_LIST
   firebase_storage
   geolocator_windows
   isar_flutter_libs
+  permission_handler_windows
   sentry_flutter
+  speech_to_text_windows
   url_launcher_windows
 )
 

@@ -11,6 +11,9 @@ import '../../data/datasources/location_service.dart';
 import '../../data/datasources/database_service.dart';
 import '../../data/services/metadata_service.dart';
 
+/// Estados da tela de diagnóstico.
+enum DiagnosticoStatus { inicial, processando, revisao, erro }
+
 class HomeController extends ChangeNotifier {
   final Classifier _classifier = Classifier();
   final LocationService _locationService = LocationService();
@@ -18,34 +21,38 @@ class HomeController extends ChangeNotifier {
   final MetadataService _metadataService = MetadataService();
   final ImagePicker _picker = ImagePicker();
 
+  DiagnosticoStatus _status = DiagnosticoStatus.inicial;
   File? _image;
-  String _resultado = "Tire uma fotografia";
-  String _confianca = "para analisar a soja";
-  String _localizacaoTexto = "";
-  bool _loading = false;
+  String _resultado = '';
+  double _confiancaValor = 0.0;
+  String _localizacaoTexto = '';
+  String _mensagemErro = '';
+  bool _salvando = false;
 
+  /// Leitura construída a partir do diagnóstico, ainda não persistida.
+  LeituraModel? _leituraPendente;
+
+  DiagnosticoStatus get status => _status;
   File? get image => _image;
   String get resultado => _resultado;
-  String get confianca => _confianca;
+  double get confiancaValor => _confiancaValor;
   String get localizacaoTexto => _localizacaoTexto;
-  bool get loading => _loading;
+  String get mensagemErro => _mensagemErro;
+  bool get salvando => _salvando;
 
   HomeController() {
     _classifier.loadModel();
   }
 
   Future<void> solicitarPermissoesIniciais() async {
-    Map<Permission, PermissionStatus> statuses = await [
+    await [
       Permission.location,
       Permission.camera,
       Permission.storage,
       Permission.photos,
       Permission.accessMediaLocation,
+      Permission.microphone,
     ].request();
-
-    statuses.forEach((permission, status) {
-      debugPrint('Permissão ${permission.toString()}: $status');
-    });
   }
 
   Future<void> pickAndProcessImage(ImageSource source, String talhao) async {
@@ -59,24 +66,19 @@ class HomeController extends ChangeNotifier {
 
     final pickedFile = await _picker.pickImage(
       source: source,
-      imageQuality: 100, 
+      imageQuality: 100,
     );
-    
+
     if (pickedFile == null) return;
 
     _image = File(pickedFile.path);
+    _status = DiagnosticoStatus.processando;
     notifyListeners();
-    
-    await _processarImagem(_image!, talhao, source);
+
+    await _processar(_image!, talhao, source);
   }
 
-  Future<void> _processarImagem(File image, String talhao, ImageSource source) async {
-    _loading = true;
-    _resultado = "A analisar...";
-    _confianca = "...";
-    _localizacaoTexto = "A processar localização... 🛰️";
-    notifyListeners();
-
+  Future<void> _processar(File image, String talhao, ImageSource source) async {
     try {
       final Map<String, dynamic> resultadoIA = await _classifier.predict(image);
       final String nomeFinal = resultadoIA['label'] ?? "Erro";
@@ -93,10 +95,7 @@ class HomeController extends ChangeNotifier {
           lng = coordsMeta['longitude']!;
           localizacaoObtida = true;
         } else {
-          _image = null;
-          _resultado = "ERRO NA GALERIA";
-          _confianca = "Foto sem GPS original";
-          _localizacaoTexto = "Metadados ausentes ❌";
+          _falhar('ERRO NA GALERIA', 'A foto não possui GPS original.');
           return;
         }
       } else {
@@ -109,40 +108,84 @@ class HomeController extends ChangeNotifier {
       }
 
       if (!localizacaoObtida || (lat == 0.0 && lng == 0.0)) {
-        _image = null;
-        _resultado = "SEM LOCALIZAÇÃO";
-        _confianca = "GPS não detectado";
-        _localizacaoTexto = "Localização obrigatória ❌";
+        _falhar('SEM LOCALIZAÇÃO',
+            'GPS não detectado. A localização é obrigatória.');
         return;
       }
 
-      final appDir = await getApplicationDocumentsDirectory();
-      final nomeFicheiro = '${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final imagemGuardada = await image.copy('${appDir.path}/$nomeFicheiro');
-
-      final novaLeitura = LeituraModel()
+      // Constrói a leitura pendente (a imagem só é copiada ao salvar).
+      _leituraPendente = LeituraModel()
         ..resultadoIA = nomeFinal.toUpperCase()
         ..confianca = confiancaIA
-        ..caminhoImagem = imagemGuardada.path
+        ..caminhoImagem = ''
         ..dataHora = DateTime.now()
         ..latitude = lat
         ..longitude = lng
         ..talhao = talhao
         ..sincronizado = false;
 
-      await _databaseService.guardarLeitura(novaLeitura);
-
       _resultado = nomeFinal.toUpperCase();
-      _confianca = "Precisão: ${(confiancaIA * 100).toStringAsFixed(1)}%";
-      _localizacaoTexto = "📍 ${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}";
-
+      _confiancaValor = confiancaIA;
+      _localizacaoTexto =
+          "📍 ${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}";
+      _status = DiagnosticoStatus.revisao;
+      notifyListeners();
     } catch (e) {
       debugPrint("ERRO NO HOME_CONTROLLER: $e");
-      _resultado = "ERRO NA ANÁLISE";
-      _confianca = "Tente novamente";
-    } finally {
-      _loading = false;
-      notifyListeners();
+      _falhar('ERRO NA ANÁLISE', 'Não foi possível processar a imagem.');
     }
+  }
+
+  void _falhar(String titulo, String mensagem) {
+    _image = null;
+    _leituraPendente = null;
+    _resultado = titulo;
+    _mensagemErro = mensagem;
+    _status = DiagnosticoStatus.erro;
+    notifyListeners();
+  }
+
+  /// Persiste a leitura em revisão, anexando a observação do técnico.
+  /// Retorna true se salvou com sucesso.
+  Future<bool> salvar({String observacao = ''}) async {
+    final pendente = _leituraPendente;
+    final origem = _image;
+    if (pendente == null || origem == null) return false;
+
+    _salvando = true;
+    notifyListeners();
+
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      final nomeFicheiro = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final imagemGuardada = await origem.copy('${appDir.path}/$nomeFicheiro');
+
+      pendente
+        ..caminhoImagem = imagemGuardada.path
+        ..observacao = observacao.trim();
+
+      await _databaseService.guardarLeitura(pendente);
+      _resetar();
+      return true;
+    } catch (e) {
+      debugPrint("ERRO AO SALVAR LEITURA: $e");
+      _falhar('ERRO AO SALVAR', 'Não foi possível guardar a leitura.');
+      return false;
+    }
+  }
+
+  /// Descarta a leitura em revisão (ex: imagem com erro de leitura).
+  void descartar() => _resetar();
+
+  void _resetar() {
+    _status = DiagnosticoStatus.inicial;
+    _image = null;
+    _leituraPendente = null;
+    _resultado = '';
+    _confiancaValor = 0.0;
+    _localizacaoTexto = '';
+    _mensagemErro = '';
+    _salvando = false;
+    notifyListeners();
   }
 }

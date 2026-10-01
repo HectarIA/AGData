@@ -7,6 +7,7 @@ class Leitura {
   final double latitude;
   final double longitude;
   final String talhao;
+  final String observacao;
   final bool sincronizado;
 
   Leitura({
@@ -18,6 +19,7 @@ class Leitura {
     required this.latitude,
     required this.longitude,
     required this.talhao,
+    this.observacao = '',
     required this.sincronizado,
   });
 }

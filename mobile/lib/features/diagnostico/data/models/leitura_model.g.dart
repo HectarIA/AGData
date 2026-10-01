@@ -42,18 +42,23 @@ const LeituraModelSchema = CollectionSchema(
       name: r'longitude',
       type: IsarType.double,
     ),
-    r'resultadoIA': PropertySchema(
+    r'observacao': PropertySchema(
       id: 5,
+      name: r'observacao',
+      type: IsarType.string,
+    ),
+    r'resultadoIA': PropertySchema(
+      id: 6,
       name: r'resultadoIA',
       type: IsarType.string,
     ),
     r'sincronizado': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'sincronizado',
       type: IsarType.bool,
     ),
     r'talhao': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'talhao',
       type: IsarType.string,
     )
@@ -93,6 +98,7 @@ int _leituraModelEstimateSize(
 ) {
   var bytesCount = offsets.last;
   bytesCount += 3 + object.caminhoImagem.length * 3;
+  bytesCount += 3 + object.observacao.length * 3;
   bytesCount += 3 + object.resultadoIA.length * 3;
   bytesCount += 3 + object.talhao.length * 3;
   return bytesCount;
@@ -109,9 +115,10 @@ void _leituraModelSerialize(
   writer.writeDateTime(offsets[2], object.dataHora);
   writer.writeDouble(offsets[3], object.latitude);
   writer.writeDouble(offsets[4], object.longitude);
-  writer.writeString(offsets[5], object.resultadoIA);
-  writer.writeBool(offsets[6], object.sincronizado);
-  writer.writeString(offsets[7], object.talhao);
+  writer.writeString(offsets[5], object.observacao);
+  writer.writeString(offsets[6], object.resultadoIA);
+  writer.writeBool(offsets[7], object.sincronizado);
+  writer.writeString(offsets[8], object.talhao);
 }
 
 LeituraModel _leituraModelDeserialize(
@@ -127,9 +134,10 @@ LeituraModel _leituraModelDeserialize(
   object.id = id;
   object.latitude = reader.readDouble(offsets[3]);
   object.longitude = reader.readDouble(offsets[4]);
-  object.resultadoIA = reader.readString(offsets[5]);
-  object.sincronizado = reader.readBool(offsets[6]);
-  object.talhao = reader.readString(offsets[7]);
+  object.observacao = reader.readString(offsets[5]);
+  object.resultadoIA = reader.readString(offsets[6]);
+  object.sincronizado = reader.readBool(offsets[7]);
+  object.talhao = reader.readString(offsets[8]);
   return object;
 }
 
@@ -153,8 +161,10 @@ P _leituraModelDeserializeProp<P>(
     case 5:
       return (reader.readString(offset)) as P;
     case 6:
-      return (reader.readBool(offset)) as P;
+      return (reader.readString(offset)) as P;
     case 7:
+      return (reader.readBool(offset)) as P;
+    case 8:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -752,6 +762,142 @@ extension LeituraModelQueryFilter
   }
 
   QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      observacaoEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'observacao',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      observacaoGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'observacao',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      observacaoLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'observacao',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      observacaoBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'observacao',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      observacaoStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'observacao',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      observacaoEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'observacao',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      observacaoContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'observacao',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      observacaoMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'observacao',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      observacaoIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'observacao',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
+      observacaoIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'observacao',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterFilterCondition>
       resultadoIAEqualTo(
     String value, {
     bool caseSensitive = true,
@@ -1102,6 +1248,19 @@ extension LeituraModelQuerySortBy
     });
   }
 
+  QueryBuilder<LeituraModel, LeituraModel, QAfterSortBy> sortByObservacao() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'observacao', Sort.asc);
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterSortBy>
+      sortByObservacaoDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'observacao', Sort.desc);
+    });
+  }
+
   QueryBuilder<LeituraModel, LeituraModel, QAfterSortBy> sortByResultadoIA() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'resultadoIA', Sort.asc);
@@ -1216,6 +1375,19 @@ extension LeituraModelQuerySortThenBy
     });
   }
 
+  QueryBuilder<LeituraModel, LeituraModel, QAfterSortBy> thenByObservacao() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'observacao', Sort.asc);
+    });
+  }
+
+  QueryBuilder<LeituraModel, LeituraModel, QAfterSortBy>
+      thenByObservacaoDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'observacao', Sort.desc);
+    });
+  }
+
   QueryBuilder<LeituraModel, LeituraModel, QAfterSortBy> thenByResultadoIA() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'resultadoIA', Sort.asc);
@@ -1289,6 +1461,13 @@ extension LeituraModelQueryWhereDistinct
     });
   }
 
+  QueryBuilder<LeituraModel, LeituraModel, QDistinct> distinctByObservacao(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'observacao', caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<LeituraModel, LeituraModel, QDistinct> distinctByResultadoIA(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -1345,6 +1524,12 @@ extension LeituraModelQueryProperty
   QueryBuilder<LeituraModel, double, QQueryOperations> longitudeProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'longitude');
+    });
+  }
+
+  QueryBuilder<LeituraModel, String, QQueryOperations> observacaoProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'observacao');
     });
   }
 
