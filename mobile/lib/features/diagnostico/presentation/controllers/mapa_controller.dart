@@ -21,6 +21,9 @@ class MapaController extends ChangeNotifier {
   /// Contagem por diagnóstico entre as ocorrências visíveis (label -> total).
   Map<String, int> contagemDoenca = {};
 
+  /// Leituras que passaram pelos filtros atuais — usada para exportação.
+  List<LeituraModel> leiturasFiltradas = [];
+
   bool loading = true;
   LatLng centroMapa = const LatLng(-26.2295, -51.0871);
 
@@ -60,6 +63,7 @@ class MapaController extends ChangeNotifier {
       return true;
     }).toList();
 
+    leiturasFiltradas = filtradas;
     _gerarCamadas(filtradas);
     notifyListeners();
   }

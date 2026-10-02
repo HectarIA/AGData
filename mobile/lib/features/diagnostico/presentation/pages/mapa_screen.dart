@@ -8,6 +8,7 @@ import '../../../../core/theme/app_dimens.dart';
 import '../../../../core/theme/diagnostico_visuals.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/section_header.dart';
+import '../../../exportacao/data/services/shapefile_export_service.dart';
 import '../controllers/mapa_controller.dart';
 
 class MapaScreen extends StatefulWidget {
@@ -20,6 +21,8 @@ class MapaScreen extends StatefulWidget {
 class _MapaScreenState extends State<MapaScreen> {
   final MapaController _controller = MapaController();
   final MapController _mapController = MapController();
+  final ShapefileExportService _exportService = ShapefileExportService();
+  bool _exportando = false;
 
   static const List<String> _tiposDoenca = [
     "SAUDÁVEL",
@@ -47,6 +50,40 @@ class _MapaScreenState extends State<MapaScreen> {
           padding: const EdgeInsets.all(60),
         ),
       );
+    }
+  }
+
+  Future<void> _exportarShapefile() async {
+    final leituras = _controller.leiturasFiltradas;
+    if (leituras.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nenhuma leitura para exportar.')),
+      );
+      return;
+    }
+
+    setState(() => _exportando = true);
+    try {
+      final nomeBase =
+          'agdata_${_controller.filtroTalhao ?? 'talhoes'}_${DateTime.now().millisecondsSinceEpoch}'
+              .replaceAll(' ', '_');
+      final arquivos = await _exportService.exportarLeituras(
+        leituras,
+        nomeBase: nomeBase,
+      );
+      if (!mounted) return;
+      await _exportService.compartilharArquivos(
+        arquivos,
+        assunto: 'Exportação AGdata — ${_controller.filtroTalhao ?? 'Talhões'}',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao exportar: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _exportando = false);
     }
   }
 
@@ -160,6 +197,20 @@ class _MapaScreenState extends State<MapaScreen> {
       appBar: AppBar(
         title: const Text('Mapa de ocorrências'),
         actions: [
+          _exportando
+              ? const Padding(
+                  padding: EdgeInsets.all(14.0),
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              : IconButton(
+                  icon: const Icon(Icons.ios_share),
+                  tooltip: 'Exportar coordenadas (Shapefile)',
+                  onPressed: _exportarShapefile,
+                ),
           IconButton(
             icon: const Icon(Icons.filter_list),
             tooltip: 'Filtrar mapa',
