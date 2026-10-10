@@ -9,6 +9,7 @@ import '../../../../core/theme/diagnostico_visuals.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/section_header.dart';
 import '../../../exportacao/data/services/shapefile_export_service.dart';
+import '../../../exportacao/data/services/esp32_send_service.dart';
 import '../controllers/mapa_controller.dart';
 
 class MapaScreen extends StatefulWidget {
@@ -22,7 +23,9 @@ class _MapaScreenState extends State<MapaScreen> {
   final MapaController _controller = MapaController();
   final MapController _mapController = MapController();
   final ShapefileExportService _exportService = ShapefileExportService();
+  final Esp32SendService _esp32Service = Esp32SendService();
   bool _exportando = false;
+  bool _enviandoEsp32 = false;
 
   static const List<String> _tiposDoenca = [
     "SAUDÁVEL",
@@ -84,6 +87,38 @@ class _MapaScreenState extends State<MapaScreen> {
       }
     } finally {
       if (mounted) setState(() => _exportando = false);
+    }
+  }
+
+  Future<void> _enviarParaEsp32() async {
+    final leituras = _controller.leiturasFiltradas;
+    if (leituras.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nenhuma leitura para enviar.')),
+      );
+      return;
+    }
+
+    setState(() => _enviandoEsp32 = true);
+    try {
+      final recebidas = await _esp32Service.enviarLeituras(leituras);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Enviado! ESP32 recebeu $recebidas leitura(s).')),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Falha ao enviar para o ESP32. Verifique se o celular está '
+              'conectado na rede "AGData-ESP32".',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _enviandoEsp32 = false);
     }
   }
 
@@ -210,6 +245,20 @@ class _MapaScreenState extends State<MapaScreen> {
                   icon: const Icon(Icons.ios_share),
                   tooltip: 'Exportar coordenadas (Shapefile)',
                   onPressed: _exportarShapefile,
+                ),
+          _enviandoEsp32
+              ? const Padding(
+                  padding: EdgeInsets.all(14.0),
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              : IconButton(
+                  icon: const Icon(Icons.wifi_tethering),
+                  tooltip: 'Enviar para ESP32 (rede AGData-ESP32)',
+                  onPressed: _enviarParaEsp32,
                 ),
           IconButton(
             icon: const Icon(Icons.filter_list),
