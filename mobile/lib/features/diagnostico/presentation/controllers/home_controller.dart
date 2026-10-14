@@ -66,7 +66,7 @@ class HomeController extends ChangeNotifier {
 
     final pickedFile = await _picker.pickImage(
       source: source,
-      imageQuality: 100,
+      imageQuality: 85,
     );
 
     if (pickedFile == null) return;

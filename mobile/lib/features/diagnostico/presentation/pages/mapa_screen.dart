@@ -10,6 +10,7 @@ import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/section_header.dart';
 import '../../../exportacao/data/services/shapefile_export_service.dart';
 import '../../../exportacao/data/services/esp32_send_service.dart';
+import '../../../exportacao/data/services/esp32_connection_service.dart';
 import '../controllers/mapa_controller.dart';
 
 class MapaScreen extends StatefulWidget {
@@ -24,6 +25,7 @@ class _MapaScreenState extends State<MapaScreen> {
   final MapController _mapController = MapController();
   final ShapefileExportService _exportService = ShapefileExportService();
   final Esp32SendService _esp32Service = Esp32SendService();
+  final Esp32ConnectionService _esp32Connection = Esp32ConnectionService();
   bool _exportando = false;
   bool _enviandoEsp32 = false;
 
@@ -90,7 +92,7 @@ class _MapaScreenState extends State<MapaScreen> {
     }
   }
 
-  Future<void> _enviarParaEsp32() async {
+  Future<void> _enviarParaPulverizador() async {
     final leituras = _controller.leiturasFiltradas;
     if (leituras.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -101,25 +103,100 @@ class _MapaScreenState extends State<MapaScreen> {
 
     setState(() => _enviandoEsp32 = true);
     try {
-      final recebidas = await _esp32Service.enviarLeituras(leituras);
+      final conectado = await _esp32Connection.conectar();
+      if (!conectado) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Não foi possível conectar na rede do pulverizador (AGData-ESP32). '
+                'Verifique se ele está ligado e ao alcance.',
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
+      final nomeBase =
+          'agdata_${_controller.filtroTalhao ?? 'talhoes'}'.replaceAll(' ', '_');
+      final arquivos = await _exportService.exportarLeituras(
+        leituras,
+        nomeBase: nomeBase,
+      );
+      await _esp32Service.enviarShapefile(arquivos);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Enviado! ESP32 recebeu $recebidas leitura(s).')),
+        SnackBar(
+          content:
+              Text('Enviado! O pulverizador recebeu ${leituras.length} leitura(s).'),
+        ),
       );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Falha ao enviar para o ESP32. Verifique se o celular está '
-              'conectado na rede "AGData-ESP32".',
+              'Falha ao enviar para o pulverizador. Verifique se ele está ligado '
+              'e dentro do alcance do Wi-Fi.',
             ),
           ),
         );
       }
     } finally {
+      await _esp32Connection.liberar();
       if (mounted) setState(() => _enviandoEsp32 = false);
     }
+  }
+
+  void _abrirMenuEnvio() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.sm),
+                child: Text('Enviar leituras para',
+                    style: Theme.of(context).textTheme.titleMedium),
+              ),
+              ListTile(
+                leading: const Icon(Icons.water_drop_outlined,
+                    color: AppColors.primary),
+                title: const Text('Pulverizador'),
+                subtitle:
+                    const Text('Conecta na rede Wi-Fi do pulverizador e envia'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _enviarParaPulverizador();
+                },
+              ),
+              ListTile(
+                enabled: false,
+                leading: const Icon(Icons.flight_outlined,
+                    color: AppColors.textTertiary),
+                title: const Text('Drone'),
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                  child: Text('Em breve',
+                      style: Theme.of(context).textTheme.bodySmall),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _abrirFiltros() {
@@ -257,8 +334,8 @@ class _MapaScreenState extends State<MapaScreen> {
                 )
               : IconButton(
                   icon: const Icon(Icons.wifi_tethering),
-                  tooltip: 'Enviar para ESP32 (rede AGData-ESP32)',
-                  onPressed: _enviarParaEsp32,
+                  tooltip: 'Enviar leituras para...',
+                  onPressed: _abrirMenuEnvio,
                 ),
           IconButton(
             icon: const Icon(Icons.filter_list),
