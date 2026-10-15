@@ -5,16 +5,11 @@ import 'package:dart_hydrologis_utils/dart_hydrologis_utils.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../diagnostico/data/models/leitura_model.dart';
-
-// WKT ESRI padrão para WGS84 (EPSG:4326) — mesmo datum usado pelo GPS do
-// telemóvel, necessário para o .prj do shapefile ser lido corretamente
-// em QGIS e nos monitores de agricultura de precisão.
-const String _wgs84Wkt = 'GEOGCS["GCS_WGS_1984",'
-    'DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],'
-    'PRIMEM["Greenwich",0.0],'
-    'UNIT["Degree",0.0174532925199433]]';
+import 'dose_service.dart';
+import 'utm_converter.dart';
 
 class ShapefileExportService {
+  final DoseService _doseService = DoseService();
   Future<List<File>> exportarLeituras(
     List<LeituraModel> leituras, {
     required String nomeBase,
@@ -32,9 +27,19 @@ class ShapefileExportService {
     final dbfFile = File('${exportDir.path}/$nomeBase.dbf');
     final prjFile = File('${exportDir.path}/$nomeBase.prj');
 
+    // O monitor de taxa variável espera o shapefile projetado em metros
+    // (UTM), não em graus decimais — senão a escala fica errada. A zona é
+    // calculada a partir do primeiro ponto (as leituras de um mesmo envio
+    // ficam tipicamente dentro da mesma zona UTM).
+    final zona = leituras.isNotEmpty
+        ? UtmConverter.zonaUtm(leituras.first.longitude)
+        : 22;
+    final hemisferioSul =
+        leituras.isNotEmpty ? leituras.first.latitude < 0 : true;
+
     await _escreverGeometria(leituras, shpFile, shxFile);
     await _escreverAtributos(leituras, dbfFile);
-    prjFile.writeAsStringSync(_wgs84Wkt);
+    prjFile.writeAsStringSync(UtmConverter.wktParaZona(zona, hemisferioSul));
 
     return [shpFile, shxFile, dbfFile, prjFile];
   }
@@ -55,10 +60,10 @@ class ShapefileExportService {
     File shxFile,
   ) async {
     final geometryFactory = GeometryFactory.defaultPrecision();
-    final pontos = leituras
-        .map((l) =>
-            geometryFactory.createPoint(Coordinate.fromYX(l.latitude, l.longitude)))
-        .toList();
+    final pontos = leituras.map((l) {
+      final utm = UtmConverter.converter(l.latitude, l.longitude);
+      return geometryFactory.createPoint(Coordinate.fromYX(utm.leste, utm.norte));
+    }).toList();
 
     final shpWriter = FileWriter(shpFile);
     final shxWriter = FileWriter(shxFile);
@@ -76,6 +81,8 @@ class ShapefileExportService {
       ..addColumn('ID', 'N', 10, 0)
       ..addColumn('DOENCA', 'C', 20, 0)
       ..addColumn('CONFIANCA', 'N', 6, 2)
+      ..addColumn('DOSE', 'N', 6, 1)
+      ..addColumn('REVISAR', 'L', 1, 0)
       ..addColumn('DATA_HORA', 'C', 19, 0)
       ..addColumn('TALHAO', 'C', 30, 0)
       ..addColumn('SYNC', 'L', 1, 0)
@@ -85,10 +92,15 @@ class ShapefileExportService {
     await writer.open();
 
     for (final l in leituras) {
+      final dose = _doseService.calcularDose(l.resultadoIA);
+      final revisar = _doseService.precisaRevisao(l.resultadoIA, l.confianca);
+
       await writer.writeRecord([
         l.id,
         l.resultadoIA,
         l.confianca * 100,
+        dose,
+        revisar,
         _formatarDataHora(l.dataHora),
         l.talhao,
         l.sincronizado,

@@ -11,6 +11,8 @@ import '../../../../core/widgets/section_header.dart';
 import '../../../exportacao/data/services/shapefile_export_service.dart';
 import '../../../exportacao/data/services/esp32_send_service.dart';
 import '../../../exportacao/data/services/esp32_connection_service.dart';
+import '../../data/datasources/database_service.dart';
+import '../../data/models/leitura_model.dart';
 import '../controllers/mapa_controller.dart';
 
 class MapaScreen extends StatefulWidget {
@@ -26,6 +28,7 @@ class _MapaScreenState extends State<MapaScreen> {
   final ShapefileExportService _exportService = ShapefileExportService();
   final Esp32SendService _esp32Service = Esp32SendService();
   final Esp32ConnectionService _esp32Connection = Esp32ConnectionService();
+  final DatabaseService _db = DatabaseService();
   bool _exportando = false;
   bool _enviandoEsp32 = false;
 
@@ -303,6 +306,46 @@ class _MapaScreenState extends State<MapaScreen> {
     );
   }
 
+  /// Ferramenta de teste: cria leituras sintéticas (sem precisar de câmera
+  /// nem foto com GPS) cobrindo todas as doenças reconhecidas, uma com
+  /// confiança baixa e uma com doença desconhecida — pra testar o cálculo
+  /// de dose/revisão e o envio pro pulverizador sem depender de fotos reais.
+  Future<void> _gerarLeiturasTeste() async {
+    const double latBase = -26.241841;
+    const double lonBase = -51.087905;
+    const talhaoTeste = 'Teste';
+
+    final casos = <Map<String, Object>>[
+      {'doenca': 'FERRUGEM', 'confianca': 0.85},
+      {'doenca': 'MANCHA_ALVO', 'confianca': 0.90},
+      {'doenca': 'SEPTORIA', 'confianca': 0.75},
+      {'doenca': 'OIDIO', 'confianca': 0.60},
+      {'doenca': 'SAUDAVEL', 'confianca': 0.95},
+      {'doenca': 'DESCONHECIDO', 'confianca': 0.50},
+    ];
+
+    for (var i = 0; i < casos.length; i++) {
+      final leitura = LeituraModel()
+        ..resultadoIA = casos[i]['doenca'] as String
+        ..confianca = casos[i]['confianca'] as double
+        ..caminhoImagem = ''
+        ..dataHora = DateTime.now()
+        ..latitude = latBase + (i * 0.0005)
+        ..longitude = lonBase + (i * 0.0005)
+        ..talhao = talhaoTeste
+        ..observacao = 'Leitura de teste gerada manualmente'
+        ..sincronizado = false;
+
+      await _db.guardarLeitura(leitura);
+    }
+
+    await _controller.recarregar();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${casos.length} leituras de teste criadas no talhão "$talhaoTeste".')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -341,6 +384,11 @@ class _MapaScreenState extends State<MapaScreen> {
             icon: const Icon(Icons.filter_list),
             tooltip: 'Filtrar mapa',
             onPressed: _abrirFiltros,
+          ),
+          IconButton(
+            icon: const Icon(Icons.bug_report_outlined),
+            tooltip: 'Gerar leituras de teste (sem câmera/GPS)',
+            onPressed: _gerarLeiturasTeste,
           ),
         ],
       ),

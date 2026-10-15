@@ -14,7 +14,11 @@ class Classifier {
       _interpreter = await Interpreter.fromAsset('assets/models/modelo_soja_2.tflite', options: options);
       
       final labelString = await rootBundle.loadString('assets/labels_v2.txt');
-      _labels = labelString.split('\n').where((s) => s.isNotEmpty).toList();
+      _labels = labelString
+          .split('\n')
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
       
       debugPrint('✅ Cérebro da IA carregado! Input Shape: ${_interpreter!.getInputTensor(0).shape}');
       debugPrint('✅ Output Shape esperado: ${_interpreter!.getOutputTensor(0).shape}');

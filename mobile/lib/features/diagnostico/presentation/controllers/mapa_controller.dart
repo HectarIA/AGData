@@ -45,6 +45,18 @@ class MapaController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Recarrega leituras/talhões do banco e reaplica os filtros atuais.
+  /// Usado depois de inserir dados (ex: leituras de teste).
+  Future<void> recarregar() async {
+    _todasLeituras = await _db.buscarTodasLeituras();
+    _todosTalhoes = await _db.buscarTodosTalhoes();
+    aplicarFiltros(
+        talhao: filtroTalhao,
+        doenca: filtroDoenca,
+        inicio: dataInicio,
+        fim: dataFim);
+  }
+
   void aplicarFiltros(
       {String? talhao, String? doenca, DateTime? inicio, DateTime? fim}) {
     filtroTalhao = talhao;
